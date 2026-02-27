@@ -147,12 +147,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         enabledToolKeyBackground.gradientRadius = resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_height) / 2.1f
 
         val mToolbarMode = if (isGone) ToolbarMode.HIDDEN else Settings.getValues().mToolbarMode
-        if (mToolbarMode == ToolbarMode.TOOLBAR_KEYS) {
-            setToolbarVisibility(true)
-        }
 
-        // toolbar keys setup
-        if (mToolbarMode == ToolbarMode.TOOLBAR_KEYS || mToolbarMode == ToolbarMode.EXPANDABLE) {
+        // toolbar keys setup — always populate toolbar (2-row layout: toolbar is always visible on top)
+        if (mToolbarMode != ToolbarMode.HIDDEN) {
             for (key in getEnabledToolbarKeys(context.prefs())) {
                 val button = createToolbarKey(context, key)
                 button.layoutParams = toolbarKeyLayoutParams
@@ -160,6 +157,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 toolbar.addView(button)
             }
         }
+        // toolbar is always visible in 2-row layout
+        toolbarContainer.visibility = VISIBLE
         if (!isGone && !Settings.getValues().mSuggestionStripHiddenPerUserSettings) {
             for (pinnedKey in getPinnedToolbarKeys(context.prefs())) {
                 val button = createToolbarKey(context, pinnedKey)
@@ -185,7 +184,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             override fun onScroll(down: MotionEvent?, me: MotionEvent, deltaX: Float, deltaY: Float): Boolean {
                 if (down == null) return false
                 val dy = me.y - down.y
-                return if (toolbarContainer.visibility != VISIBLE && deltaY > 0 && dy < (-10).dpToPx(resources)) showMoreSuggestions()
+                return if (deltaY > 0 && dy < (-10).dpToPx(resources)) showMoreSuggestions()
                 else false
             }
         }
@@ -210,26 +209,23 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         else {
             newLayoutDirection = if (isRtlLanguage) LAYOUT_DIRECTION_RTL else LAYOUT_DIRECTION_LTR
             direction = if (isRtlLanguage) -1 else 1
-            toolbarExpandKey.scaleX = (if (toolbarContainer.visibility != VISIBLE) 1f else -1f) * direction
         }
         layoutDirection = newLayoutDirection
         suggestionsStrip.layoutDirection = newLayoutDirection
     }
 
     fun setToolbarVisibility(toolbarVisible: Boolean) {
-        // avoid showing toolbar keys when locked
+        // 2-row layout: toolbar is always visible on top, suggestions/pinned always on bottom
         val locked = isDeviceLocked(context)
-        pinnedKeys.isVisible = !locked && !toolbarVisible
-        suggestionsStrip.isVisible = locked || !toolbarVisible
-        toolbarContainer.isVisible = !locked && toolbarVisible
+        toolbarContainer.isVisible = !locked
+        pinnedKeys.isVisible = !locked
+        suggestionsStrip.isVisible = true
 
         if (DEBUG_SUGGESTIONS) {
             for (view in debugInfoViews) {
                 view.visibility = suggestionsStrip.visibility
             }
         }
-
-        toolbarExpandKey.scaleX = (if (toolbarVisible && !locked) -1f else 1f) * direction
     }
 
     fun setSuggestions(suggestions: SuggestedWords, isRtlLanguage: Boolean) {
@@ -332,7 +328,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             }
         }
         if (view === toolbarExpandKey) {
-            setToolbarVisibility(toolbarContainer.visibility != VISIBLE)
+            // 2-row layout: toolbar is always visible, expand key is hidden
         }
 
         // tag for word views is set in SuggestionStripLayoutHelper (setupWordViewsTextAndColor, layoutPunctuationSuggestions)
@@ -480,8 +476,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private fun clear() {
         suggestionsStrip.removeAllViews()
         if (DEBUG_SUGGESTIONS) removeAllDebugInfoViews()
-        if (!toolbarContainer.isVisible)
-            suggestionsStrip.isVisible = true
+        suggestionsStrip.isVisible = true
         dismissMoreSuggestionsPanel()
         for (word in wordViews) {
             word.setOnTouchListener(null)
@@ -507,19 +502,18 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         updateVoiceKey()
         val settingsValues = Settings.getValues()
 
-        val toolbarIsExpandable = settingsValues.mToolbarMode == ToolbarMode.EXPANDABLE
+        // 2-row layout: expand key is hidden (toolbar always visible on top row)
         if (settingsValues.mIncognitoModeEnabled) {
             toolbarExpandKey.setImageDrawable(incognitoIcon)
             toolbarExpandKey.isVisible = true
         } else {
-            toolbarExpandKey.setImageDrawable(toolbarArrowIcon)
-            toolbarExpandKey.isVisible = toolbarIsExpandable
+            toolbarExpandKey.isVisible = false
         }
 
-        // hide pinned keys if device is locked, and avoid expanding toolbar
+        // hide toolbar/pinned keys if device is locked
         val hideToolbarKeys = isDeviceLocked(context)
-        toolbarExpandKey.setOnClickListener(if (hideToolbarKeys || !toolbarIsExpandable) null else this)
-        pinnedKeys.visibility = if (hideToolbarKeys) GONE else suggestionsStrip.visibility
+        toolbarContainer.isVisible = !hideToolbarKeys
+        pinnedKeys.isVisible = !hideToolbarKeys
         isExternalSuggestionVisible = false
     }
 
