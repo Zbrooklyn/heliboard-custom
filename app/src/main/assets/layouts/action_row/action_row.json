@@ -1,11 +1,12 @@
 [
   [
-    { "label": "voice", "type": "function" },
-    { "label": "clipboard", "type": "function" },
-    { "label": "emoji", "type": "function" },
-    { "label": "one_handed", "type": "function" },
-    { "label": "settings", "type": "function" },
-    { "label": "undo", "type": "function" },
-    { "label": "redo", "type": "function" }
+    { "label": "left", "type": "function" },
+    { "label": "right", "type": "function" },
+    { "label": "select_word", "type": "function" },
+    { "label": "copy", "type": "function" },
+    { "label": "paste", "type": "function" },
+    { "label": "select_all", "type": "function" },
+    { "label": "up", "type": "function" },
+    { "label": "down", "type": "function" }
   ]
 ]
