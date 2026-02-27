@@ -32,6 +32,7 @@ object Defaults {
         LayoutType.FUNCTIONAL -> if (Settings.getInstance().isTablet) "functional_keys_tablet" else "functional_keys"
         LayoutType.NUMBER -> "number"
         LayoutType.NUMBER_ROW -> "number_row"
+        LayoutType.ACTION_ROW -> "action_row"
         LayoutType.NUMPAD -> "numpad"
         LayoutType.NUMPAD_LANDSCAPE -> "numpad_landscape"
         LayoutType.PHONE -> "phone"

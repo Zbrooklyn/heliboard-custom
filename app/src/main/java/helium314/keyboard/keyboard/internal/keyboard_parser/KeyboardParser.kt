@@ -65,15 +65,11 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
         if (params.mId.isEmojiClipBottomRow) {
             heightRescale = 4f
             // params rescale is not perfect, especially mTopPadding may cause 1 pixel offsets because it's already been converted to int once
-            if (Settings.getValues().mShowsNumberRow) {
-                params.mOccupiedHeight /= 5
-                params.mBaseHeight /= 5
-                params.mTopPadding = (params.mTopPadding / 5.0).roundToInt()
-            } else {
-                params.mOccupiedHeight /= 4
-                params.mBaseHeight /= 4
-                params.mTopPadding = (params.mTopPadding / 4.0).roundToInt()
-            }
+            // row count: 4 base + number row (if enabled) + action row (always on alpha)
+            val rowCount = 4 + (if (Settings.getValues().mShowsNumberRow) 1 else 0) + 1 // +1 for action row
+            params.mOccupiedHeight /= rowCount
+            params.mBaseHeight /= rowCount
+            params.mTopPadding = (params.mTopPadding / rowCount.toDouble()).roundToInt()
         } else {
             // rescale height if we have anything but the usual 4 rows
             heightRescale = if (keysInRows.size != 4) 4f / keysInRows.size else 1f
@@ -102,6 +98,13 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
             val newLabelFlags = defaultLabelFlags or
                     if (Settings.getValues().mShowNumberRowHints) 0 else Key.LABEL_FLAGS_DISABLE_HINT_LABEL
             baseKeys.add(0, numberRow.mapTo(mutableListOf()) { it.copy(newLabelFlags = newLabelFlags) })
+        }
+        // add action row above number row (Samsung-style toolbar row in keyboard)
+        if (params.mId.isAlphaOrSymbolKeyboard) {
+            val actionRow = getActionRow()
+            if (actionRow.isNotEmpty()) {
+                baseKeys.add(0, actionRow)
+            }
         }
         if (!params.mAllowRedundantPopupKeys)
             params.baseKeys = baseKeys.flatMap { row -> row.map { it.toKeyParams(params) } }
@@ -321,6 +324,14 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
             }
         }
         return row
+    }
+
+    private fun getActionRow(): MutableList<KeyData> {
+        return try {
+            LayoutParser.parseLayout(LayoutType.ACTION_ROW, params, context).first()
+        } catch (e: Exception) {
+            mutableListOf()
+        }
     }
 
     // some layouts have numbers hardcoded in the main layout (pcqwerty as keys, and others as popups)
