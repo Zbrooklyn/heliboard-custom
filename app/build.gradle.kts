@@ -23,6 +23,18 @@ android {
         proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
 
+    signingConfigs {
+        create("custom") {
+            val ksFile = file("${rootDir}/keystore.jks")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "heliboard123"
+                keyAlias = System.getenv("KEY_ALIAS") ?: "heliboard"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: "heliboard123"
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -42,6 +54,10 @@ android {
             isMinifyEnabled = true
             isJniDebuggable = false
             applicationIdSuffix = ".debug"
+            val ksFile = file("${rootDir}/keystore.jks")
+            if (ksFile.exists()) {
+                signingConfig = signingConfigs.getByName("custom")
+            }
         }
         create("runTests") { // build variant for running tests on CI that skips tests known to fail
             isMinifyEnabled = false
