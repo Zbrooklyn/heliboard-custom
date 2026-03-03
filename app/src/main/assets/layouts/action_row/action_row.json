@@ -1,12 +1,12 @@
 [
   [
-    { "label": "left", "type": "function" },
-    { "label": "right", "type": "function" },
-    { "label": "select_word", "type": "function" },
-    { "label": "copy", "type": "function" },
-    { "label": "paste", "type": "function" },
-    { "label": "select_all", "type": "function" },
-    { "label": "up", "type": "function" },
-    { "label": "down", "type": "function" }
+    { "label": "left", "type": "function", "width": -1 },
+    { "label": "right", "type": "function", "width": -1 },
+    { "label": "select_word", "type": "function", "width": -1 },
+    { "label": "copy", "type": "function", "width": -1 },
+    { "label": "paste", "type": "function", "width": -1 },
+    { "label": "select_all", "type": "function", "width": -1 },
+    { "label": "up", "type": "function", "width": -1 },
+    { "label": "down", "type": "function", "width": -1 }
   ]
 ]
