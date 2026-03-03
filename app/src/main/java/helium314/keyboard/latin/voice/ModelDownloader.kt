@@ -33,6 +33,7 @@ object ModelDownloader {
         return File(getModelsDir(context), DEFAULT_MODEL_NAME)
     }
 
+    @JvmStatic
     fun isModelDownloaded(context: Context): Boolean {
         return getDefaultModelFile(context).exists()
     }
