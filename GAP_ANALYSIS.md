@@ -17,7 +17,7 @@
 | **Icons** | 7: AI sparkle, clipboard, emoji, keyboard, settings, floating, "..." | 6: mic, clipboard, emoji, 1234, settings, incognito | PARTIAL | Different icons, different count |
 | **Icon distribution** | Evenly spaced across full width | Evenly spaced (weight=1, after fix) | YES | — |
 | **Icon style** | Circular with subtle dark bg (#3A3A3A-ish) | No per-icon background | NO | Samsung icons have circular dark background shapes |
-| **Background** | Subtle dark gray strip (~#1A1A1A) | Pure black (inherits keyboard bg) | NO | Samsung toolbar has its own darker background strip |
+| **Background** | Subtle dark gray strip (~#1A1A1A) | adjustedBackground (subtle dark gray) | CLOSE | Fixed in commit eddce79c |
 | **Height** | ~44dp | 40dp | CLOSE | May need fine-tuning |
 | **Suggestion swap** | Suggestions replace toolbar when typing | Same (after latest fix) | YES | — |
 | **Orange dot** | Notification indicator on emoji icon | N/A | NO | Samsung system feature |
@@ -41,7 +41,7 @@
 | **Digits** | 1 2 3 4 5 6 7 8 9 0 | 1 2 3 4 5 6 7 8 9 0 | YES | — |
 | **Key count** | 10 | 10 | YES | — |
 | **Width fill** | Edge to edge | Edge to edge (default width × 10) | YES | — |
-| **Text size** | ~24sp (noticeably larger than letters) | Same size as letters (~18sp) | NO | Samsung numbers are ~30% larger |
+| **Text size** | ~24sp (noticeably larger than letters) | 62% ratio (~13% larger than letters) | CLOSE | Reduced from 72% to 62%, Samsung may be slightly bigger |
 | **Key background** | Same dark gray as letter keys | Same dark gray | YES | — |
 | **Hint labels (shifted)** | ! @ # $ % ^ & * ( ) | ! @ # $ % ^ & * ( ) | YES | — |
 | **Font weight** | Medium/regular | Regular | CLOSE | — |
@@ -51,7 +51,7 @@
 | Property | Samsung | HeliBoard | Match | Gap |
 |----------|---------|-----------|-------|-----|
 | **Key count** | 10 | 10 | YES | — |
-| **Hint characters** | + × ÷ = / - < > [ ] | % \ \| = [ ] < > { } | NO | Different symbol assignments |
+| **Hint characters** | + × ÷ = / - < > [ ] | + × ÷ = / - < > [ ] | YES | Fixed in commit eddce79c |
 | **Hint position** | Top-right corner of each key | Top-right corner | YES | — |
 | **Hint text color** | Gray (~#808080) | Gray (#80FFFFFF = 50% white) | CLOSE | — |
 | **Letter text color** | White (#FFFFFF) | White (#FFFFFF) | YES | — |
@@ -63,7 +63,7 @@
 | Property | Samsung | HeliBoard | Match | Gap |
 |----------|---------|-----------|-------|-----|
 | **Key count** | 9 | 9 | YES | — |
-| **Hint characters** | ! @ # $ % ^ & * ( ) | @ # $ - & - + ( ) | PARTIAL | Different mapping |
+| **Hint characters** | ! @ # $ % ^ & * ( | ! @ # $ % ^ & * ( | YES | Fixed in commit 5a8affc3 |
 | **Side indentation** | Minimal (~half-key spacers) | Auto-spacers from width calc | CLOSE | HeliBoard auto-adds spacers |
 | **Key background** | Same as QWERTY row | Same | YES | — |
 
@@ -75,7 +75,7 @@
 | **Shift key** | Left, same corner radius as letters, outlined arrow | Left, 8dp radius, filled arrow | PARTIAL | Different icon style |
 | **Backspace key** | Right, same corner radius, outlined ⌫ icon | Right, 8dp radius, filled ⌫ icon | PARTIAL | Different icon style |
 | **Shift/BS width** | ~15% each | 15% each (width: 0.15) | YES | — |
-| **Hint characters** | - ' " : ; ! ? | * " ' : ! ? | PARTIAL | Different mapping |
+| **Hint characters** | - ' " : ; ! ? | _ " ' : ; ! ? | CLOSE | z=_ vs Samsung z=- (rest matches) |
 
 ### 1.7 Bottom Row
 
@@ -100,7 +100,7 @@
 | **Key background (functional)** | Same as normal keys | Same (#333333) | YES | — |
 | **Key text color** | #FFFFFF | #FFFFFF | YES | — |
 | **Hint text color** | ~#808080 (medium gray) | #80FFFFFF (50% white) | CLOSE | — |
-| **Action key accent** | Same dark gray (no highlight) | Light blue (#5E97F6) | NO | Samsung enter key has no accent color |
+| **Action key accent** | Same dark gray (no highlight) | Same dark gray (AMOLED override) | YES | Fixed in commit eddce79c |
 | **Toolbar icon color** | White/light gray | White/light gray | YES | — |
 | **Key bevel/shadow** | None (flat) | None (flat, after fix) | YES | — |
 
@@ -112,9 +112,9 @@
 |----------|---------|---------------------|-------|-----|
 | **Corner radius (normal)** | ~7-8dp | 8dp | YES | — |
 | **Corner radius (functional)** | Same as normal (~7-8dp) | 8dp | YES | — |
-| **Horizontal key gap** | ~2px (~0.5%p) | 0.8%p | CLOSE | HeliBoard slightly wider |
-| **Vertical key gap** | ~3px (~1.5%p) | 2.5%p | CLOSE | HeliBoard slightly wider |
-| **Left/right padding** | ~1% | 1.5%p | CLOSE | HeliBoard slightly more |
+| **Horizontal key gap** | ~2px (~0.5%p) | 0.5%p | YES | Fixed in commit eddce79c |
+| **Vertical key gap** | ~3px (~1.5%p) | 1.5%p | YES | Fixed in commit eddce79c |
+| **Left/right padding** | ~1% | 1.0%p | YES | Fixed in commit eddce79c |
 | **Top padding** | ~1% | 1.0%p | YES | — |
 | **Bottom padding** | ~1% | 1.5%p | CLOSE | — |
 | **Keyboard height** | ~210dp (estimated) | 205.6dp | CLOSE | — |
@@ -128,7 +128,7 @@
 |----------|---------|-----------|-------|-----|
 | **Font family** | SamsungOne / SamsungSans | System default (Roboto) | NO | System-level, not changeable in-app |
 | **Letter text size ratio** | ~55% | 55% (config_key_letter_ratio) | YES | — |
-| **Number text size** | ~30% larger than letters | Same as letters | NO | Need per-row override |
+| **Number text size** | ~30% larger than letters | 62% ratio (~13% larger) | CLOSE | Fixed with FOLLOW_KEY_LARGE_LETTER_RATIO flag |
 | **Hint text size ratio** | ~25% | 25% (config_key_hint_letter_ratio) | YES | — |
 | **Spacebar label size** | ~33% | 33.735% (config_language_on_spacebar_text_ratio) | YES | — |
 
@@ -171,13 +171,13 @@
 
 | Category | Items Checked | Match | Close | No Match | Score |
 |----------|--------------|-------|-------|----------|-------|
-| **Layout structure** | 12 | 9 | 1 | 2 | 75% |
-| **Colors & theme** | 8 | 6 | 1 | 1 | 81% |
-| **Geometry & spacing** | 9 | 5 | 4 | 0 | 78% |
-| **Typography** | 5 | 4 | 0 | 1 | 80% |
+| **Layout structure** | 12 | 10 | 1 | 1 | 88% |
+| **Colors & theme** | 8 | 7 | 1 | 0 | 94% |
+| **Geometry & spacing** | 9 | 8 | 1 | 0 | 94% |
+| **Typography** | 5 | 4 | 1 | 0 | 90% |
 | **Behavior** | 5 | 3 | 1 | 1 | 70% |
 | **Icons** | 14 | 2 | 4 | 8 | 29% |
-| **OVERALL** | **53** | **29** | **11** | **13** | **65%** |
+| **OVERALL** | **53** | **34** | **9** | **10** | **73%** |
 
 ---
 
@@ -187,18 +187,18 @@
 
 | # | Fix | Impact | Effort | Files |
 |---|-----|--------|--------|-------|
-| 1 | **Hint character mapping** — change from `% \ \| = [ ] < > { }` to `+ × ÷ = / - < > [ ]` to match Samsung | HIGH | Easy | Main layout JSON popup keys |
-| 2 | **Action key accent color** — Samsung enter key has no special color, uses same dark gray. HeliBoard search key has blue accent | HIGH | Easy | KeyboardTheme.kt or colors.xml — action key background color |
-| 3 | **Key gap fine-tuning** — reduce horizontal 0.8%→0.5%, vertical 2.5%→1.5% to tighten further | MEDIUM | Easy | config.xml |
-| 4 | **Side padding fine-tuning** — reduce 1.5%→1.0% to match Samsung edge-to-edge | LOW | Easy | config-common.xml |
+| 1 | ~~**Hint character mapping**~~ | ~~HIGH~~ | ~~Easy~~ | DONE (eddce79c) — QWERTY hints match Samsung |
+| 2 | ~~**Action key accent color**~~ | ~~HIGH~~ | ~~Easy~~ | DONE (eddce79c) — uses dark gray on AMOLED |
+| 3 | ~~**Key gap fine-tuning**~~ | ~~MEDIUM~~ | ~~Easy~~ | DONE (eddce79c) — h:0.5%p, v:1.5%p |
+| 4 | ~~**Side padding fine-tuning**~~ | ~~LOW~~ | ~~Easy~~ | DONE (eddce79c) — 1.0%p |
 
 ### Tier 2 — Medium Effort
 
 | # | Fix | Impact | Effort | Files |
 |---|-----|--------|--------|-------|
-| 5 | **Number row text size** — make digits ~30% larger than letters | HIGH | Medium | Kotlin: per-row text size override or new config value |
+| 5 | ~~**Number row text size**~~ | ~~HIGH~~ | ~~Medium~~ | DONE (eddce79c + 5a8affc3) — 62% ratio via LARGE_LETTER flag |
 | 6 | **Toolbar icon backgrounds** — add subtle circular dark backgrounds behind each icon | MEDIUM | Medium | Toolbar key setup in SuggestionStripView.kt + new drawable |
-| 7 | **Toolbar strip background** — add dark gray (#1A1A1A) background to toolbar row | MEDIUM | Easy | suggestions_strip.xml — add background to toolbar_container |
+| 7 | ~~**Toolbar strip background**~~ | ~~MEDIUM~~ | ~~Easy~~ | DONE (eddce79c) — adjustedBackground on AMOLED |
 
 ### Tier 3 — Hard / Not Possible
 
@@ -217,12 +217,12 @@
 ```
 top_padding:        1.0%p
 bottom_padding:     1.5%p
-left_padding:       1.5%p
-right_padding:      1.5%p
-vertical_gap:       2.5%p
-horizontal_gap:     0.8%p
-vertical_gap_narrow:   1.8%p
-horizontal_gap_narrow: 0.5%p
+left_padding:       1.0%p
+right_padding:      1.0%p
+vertical_gap:       1.5%p
+horizontal_gap:     0.5%p
+vertical_gap_narrow:   1.0%p
+horizontal_gap_narrow: 0.3%p
 ```
 
 ### Colors (AMOLED Black theme)
@@ -274,3 +274,7 @@ emoji:              conditional (emojiKeyEnabled)
 | 733aa8b0 | SuggestionStripView.kt | Hide empty suggestion row |
 | 3d210ec2 | suggestions_strip.xml, SuggestionStripView.kt | Toolbar icons evenly distributed |
 | 7e87a939 | suggestions_strip.xml, SuggestionStripView.kt, config.xml | Single-row swap layout, strip 76dp→40dp |
+| 26d58098 | GAP_ANALYSIS.md | 53-item gap analysis document |
+| cdf49603 | ROADMAP.md | Updated roadmap with progress |
+| eddce79c | 6 files | Close Samsung gap (hints, action key, spacing, number size, toolbar bg) |
+| 5a8affc3 | config.xml, symbols.txt | Number row size 72%→62%, home row hints to Samsung order |
