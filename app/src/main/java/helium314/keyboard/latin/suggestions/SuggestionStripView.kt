@@ -124,8 +124,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private var direction = 1 // 1 if LTR, -1 if RTL
 
     private val toolbarKeyLayoutParams = LinearLayout.LayoutParams(
-        resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_edge_key_width),
-        LinearLayout.LayoutParams.MATCH_PARENT
+        0,
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        1f // equal weight — distributes toolbar keys evenly across full width
     )
 
     init {

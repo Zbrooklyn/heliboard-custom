@@ -15,22 +15,21 @@
         android:layout_height="match_parent"
         android:hapticFeedbackEnabled="false"
         android:soundEffectsEnabled="false">
-        <!-- Top row: toolbar keys (always visible, Samsung-style) -->
-        <HorizontalScrollView
+        <!-- Top row: toolbar keys (always visible, Samsung-style, evenly distributed) -->
+        <LinearLayout
             android:id="@+id/toolbar_container"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:scrollbarThumbHorizontal="@color/toolbar_scrollbar"
             android:visibility="visible">
             <LinearLayout
                 android:id="@+id/toolbar"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="horizontal"
                 style="?attr/suggestionWordStyle">
             </LinearLayout>
-        </HorizontalScrollView>
+        </LinearLayout>
         <!-- Bottom row: suggestions + pinned keys -->
         <LinearLayout
             android:id="@+id/bottom_strip_row"
