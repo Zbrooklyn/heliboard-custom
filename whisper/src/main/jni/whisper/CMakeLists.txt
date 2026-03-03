@@ -23,7 +23,18 @@ set(SOURCE_FILES
 
 find_library(LOG_LIB log)
 
+# Fetch ggml once at top level (not inside function to avoid repeated add_subdirectory)
 include(FetchContent)
+FetchContent_Declare(ggml SOURCE_DIR ${WHISPER_LIB_DIR}/ggml)
+FetchContent_MakeAvailable(ggml)
+
+# Include paths for whisper.h, ggml.h etc. — set at directory level so all targets inherit
+include_directories(${WHISPER_LIB_DIR})
+include_directories(${WHISPER_LIB_DIR}/src)
+include_directories(${WHISPER_LIB_DIR}/include)
+include_directories(${WHISPER_LIB_DIR}/ggml/include)
+include_directories(${WHISPER_LIB_DIR}/ggml/src)
+include_directories(${WHISPER_LIB_DIR}/ggml/src/ggml-cpu)
 
 function(build_library target_name)
     add_library(
@@ -32,12 +43,19 @@ function(build_library target_name)
         ${SOURCE_FILES}
     )
 
-    FetchContent_Declare(ggml SOURCE_DIR ${WHISPER_LIB_DIR}/ggml)
-    FetchContent_MakeAvailable(ggml)
-
     target_link_libraries(${target_name} ${LOG_LIB} android ggml)
     target_compile_definitions(${target_name} PUBLIC GGML_USE_CPU)
     target_compile_definitions(${target_name} PRIVATE WHISPER_VERSION="${WHISPER_VERSION}")
+
+    # Explicit include directories per target (belt and suspenders)
+    target_include_directories(${target_name} PRIVATE
+        ${WHISPER_LIB_DIR}
+        ${WHISPER_LIB_DIR}/src
+        ${WHISPER_LIB_DIR}/include
+        ${WHISPER_LIB_DIR}/ggml/include
+        ${WHISPER_LIB_DIR}/ggml/src
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu
+    )
 
     if (${target_name} STREQUAL "whisper_v8fp16_va")
         target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16)
@@ -59,10 +77,3 @@ if (${ANDROID_ABI} STREQUAL "arm64-v8a")
 elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
     build_library("whisper_vfpv4")
 endif ()
-
-include_directories(${WHISPER_LIB_DIR})
-include_directories(${WHISPER_LIB_DIR}/src)
-include_directories(${WHISPER_LIB_DIR}/include)
-include_directories(${WHISPER_LIB_DIR}/ggml/include)
-include_directories(${WHISPER_LIB_DIR}/ggml/src)
-include_directories(${WHISPER_LIB_DIR}/ggml/src/ggml-cpu)
