@@ -231,7 +231,8 @@ class DynamicColors(context: Context, override val themeStyle: String, override 
                 else pressedStateList(functionalKey, doubleAdjustedKeyBackground)
 
             actionKeyStateList =
-                if (!isNight) pressedStateList(gesture, accent)
+                if (background == Color.BLACK) keyStateList // AMOLED: action key matches normal keys
+                else if (!isNight) pressedStateList(gesture, accent)
                 else pressedStateList(doubleAdjustedAccent, accent)
 
             spaceBarStateList =
@@ -253,7 +254,8 @@ class DynamicColors(context: Context, override val themeStyle: String, override 
                 else keyStateList
 
             actionKeyStateList =
-                if (themeStyle == STYLE_HOLO) pressedStateList(accent, Color.TRANSPARENT)
+                if (background == Color.BLACK) keyStateList // AMOLED: action key matches normal keys
+                else if (themeStyle == STYLE_HOLO) pressedStateList(accent, Color.TRANSPARENT)
                 else if (!isNight) pressedStateList(gesture, accent)
                 else pressedStateList(doubleAdjustedAccent, accent)
 
@@ -272,8 +274,10 @@ class DynamicColors(context: Context, override val themeStyle: String, override 
     }
 
     override fun get(color: ColorType): Int = when (color) {
-        TOOL_BAR_KEY_ENABLED_BACKGROUND, EMOJI_CATEGORY_SELECTED, ACTION_KEY_BACKGROUND,
+        TOOL_BAR_KEY_ENABLED_BACKGROUND, EMOJI_CATEGORY_SELECTED,
         CLIPBOARD_PIN, SHIFT_KEY_ICON -> accent
+        // Samsung-style: action key matches normal keys on AMOLED black theme
+        ACTION_KEY_BACKGROUND -> if (background == Color.BLACK) keyBackground else accent
         AUTOFILL_BACKGROUND_CHIP, GESTURE_PREVIEW, POPUP_KEYS_BACKGROUND, MORE_SUGGESTIONS_BACKGROUND, KEY_PREVIEW_BACKGROUND -> adjustedBackground
         TOOL_BAR_EXPAND_KEY_BACKGROUND -> if (!isNight) accent else doubleAdjustedBackground
         GESTURE_TRAIL -> gesture
@@ -285,8 +289,10 @@ class DynamicColors(context: Context, override val themeStyle: String, override 
         SPACE_BAR_BACKGROUND -> spaceBar
         MORE_SUGGESTIONS_WORD_BACKGROUND, MAIN_BACKGROUND -> background
         KEY_BACKGROUND -> keyBackground
-        ACTION_KEY_POPUP_KEYS_BACKGROUND -> if (themeStyle == STYLE_HOLO) adjustedBackground else accent
-        STRIP_BACKGROUND -> if (!hasKeyBorders && themeStyle == STYLE_MATERIAL) adjustedBackground else background
+        ACTION_KEY_POPUP_KEYS_BACKGROUND -> if (background == Color.BLACK) keyBackground
+            else if (themeStyle == STYLE_HOLO) adjustedBackground else accent
+        STRIP_BACKGROUND -> if (background == Color.BLACK) adjustedBackground // AMOLED: subtle dark gray strip like Samsung
+            else if (!hasKeyBorders && themeStyle == STYLE_MATERIAL) adjustedBackground else background
         CLIPBOARD_SUGGESTION_BACKGROUND -> doubleAdjustedBackground
         NAVIGATION_BAR -> navBar
         MORE_SUGGESTIONS_HINT, SUGGESTED_WORD, SUGGESTION_TYPED_WORD, SUGGESTION_VALID_WORD -> adjustedKeyText
@@ -446,7 +452,8 @@ class DefaultColors (
             keyStateList = if (themeStyle == STYLE_HOLO) pressedStateList(keyBackground, keyBackground)
                 else pressedStateList(brightenOrDarken(keyBackground, true), keyBackground)
             functionalKeyStateList = pressedStateList(brightenOrDarken(functionalKey, true), functionalKey)
-            actionKeyStateList = if (themeStyle == STYLE_HOLO) functionalKeyStateList
+            actionKeyStateList = if (background == Color.BLACK) keyStateList // AMOLED: action key matches normal keys
+                else if (themeStyle == STYLE_HOLO) functionalKeyStateList
                 else pressedStateList(brightenOrDarken(accent, true), accent)
             spaceBarStateList = if (themeStyle == STYLE_HOLO) pressedStateList(spaceBar, spaceBar)
                 else pressedStateList(brightenOrDarken(spaceBar, true), spaceBar)
@@ -455,7 +462,8 @@ class DefaultColors (
             backgroundStateList = pressedStateList(brightenOrDarken(background, true), background)
             keyStateList = pressedStateList(keyBackground, Color.TRANSPARENT)
             functionalKeyStateList = keyStateList
-            actionKeyStateList = if (themeStyle == STYLE_HOLO) functionalKeyStateList
+            actionKeyStateList = if (background == Color.BLACK) keyStateList // AMOLED: action key matches normal keys
+                else if (themeStyle == STYLE_HOLO) functionalKeyStateList
                 else pressedStateList(brightenOrDarken(accent, true), accent)
             spaceBarStateList = pressedStateList(brightenOrDarken(spaceBar, true), spaceBar)
         }
@@ -469,8 +477,9 @@ class DefaultColors (
     }
 
     override fun get(color: ColorType): Int = when (color) {
-        TOOL_BAR_KEY_ENABLED_BACKGROUND, EMOJI_CATEGORY_SELECTED, ACTION_KEY_BACKGROUND,
+        TOOL_BAR_KEY_ENABLED_BACKGROUND, EMOJI_CATEGORY_SELECTED,
             CLIPBOARD_PIN, SHIFT_KEY_ICON -> accent
+        ACTION_KEY_BACKGROUND -> if (background == Color.BLACK) keyBackground else accent
         AUTOFILL_BACKGROUND_CHIP -> if (themeStyle == STYLE_MATERIAL && !hasKeyBorders) background else adjustedBackground
         GESTURE_PREVIEW, POPUP_KEYS_BACKGROUND, MORE_SUGGESTIONS_BACKGROUND, KEY_PREVIEW_BACKGROUND -> adjustedBackground
         TOOL_BAR_EXPAND_KEY_BACKGROUND, CLIPBOARD_SUGGESTION_BACKGROUND -> doubleAdjustedBackground
@@ -483,8 +492,10 @@ class DefaultColors (
         SPACE_BAR_BACKGROUND -> spaceBar
         MORE_SUGGESTIONS_WORD_BACKGROUND, MAIN_BACKGROUND -> background
         KEY_BACKGROUND -> keyBackground
-        ACTION_KEY_POPUP_KEYS_BACKGROUND -> if (themeStyle == STYLE_HOLO) adjustedBackground else accent
-        STRIP_BACKGROUND -> if (!hasKeyBorders && themeStyle == STYLE_MATERIAL) adjustedBackground else background
+        ACTION_KEY_POPUP_KEYS_BACKGROUND -> if (background == Color.BLACK) keyBackground
+            else if (themeStyle == STYLE_HOLO) adjustedBackground else accent
+        STRIP_BACKGROUND -> if (background == Color.BLACK) adjustedBackground
+            else if (!hasKeyBorders && themeStyle == STYLE_MATERIAL) adjustedBackground else background
         NAVIGATION_BAR -> navBar
         SUGGESTION_AUTO_CORRECT, EMOJI_CATEGORY, TOOL_BAR_KEY, TOOL_BAR_EXPAND_KEY, ONE_HANDED_MODE_BUTTON -> suggestionText
         MORE_SUGGESTIONS_HINT, SUGGESTED_WORD, SUGGESTION_TYPED_WORD, SUGGESTION_VALID_WORD -> adjustedSuggestionText

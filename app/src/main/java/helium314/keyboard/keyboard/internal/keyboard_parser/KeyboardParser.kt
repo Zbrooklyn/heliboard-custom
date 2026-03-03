@@ -95,7 +95,7 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
         if (params.mId.isAlphabetKeyboard)
             addSymbolPopupKeys(baseKeys)
         if (params.mId.isAlphaOrSymbolKeyboard && params.mId.mNumberRowEnabled) {
-            val newLabelFlags = defaultLabelFlags or
+            val newLabelFlags = defaultLabelFlags or Key.LABEL_FLAGS_FOLLOW_KEY_LARGE_LETTER_RATIO or
                     if (Settings.getValues().mShowNumberRowHints) 0 else Key.LABEL_FLAGS_DISABLE_HINT_LABEL
             baseKeys.add(0, numberRow.mapTo(mutableListOf()) { it.copy(newLabelFlags = newLabelFlags) })
         }
