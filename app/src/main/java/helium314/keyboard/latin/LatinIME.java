@@ -12,6 +12,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.widget.Toast;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
@@ -83,6 +84,9 @@ import helium314.keyboard.latin.utils.SubtypeLocaleUtils;
 import helium314.keyboard.latin.utils.SubtypeSettings;
 import helium314.keyboard.latin.utils.SubtypeState;
 import helium314.keyboard.latin.utils.ToolbarMode;
+import helium314.keyboard.latin.voice.ModelDownloader;
+import helium314.keyboard.latin.voice.VoiceInputManager;
+import helium314.keyboard.latin.voice.VoicePermissionActivity;
 import helium314.keyboard.settings.SettingsActivity2;
 import kotlin.Unit;
 
@@ -137,6 +141,7 @@ public class LatinIME extends InputMethodService implements
     private SuggestionStripView mSuggestionStripView;
 
     private RichInputMethodManager mRichImm;
+    private VoiceInputManager mVoiceInputManager;
     final KeyboardSwitcher mKeyboardSwitcher;
     private final SubtypeState mSubtypeState = new SubtypeState((InputMethodSubtype subtype) -> { switchToSubtype(subtype); return Unit.INSTANCE; });
     private final StatsUtilsManager mStatsUtilsManager;
@@ -572,6 +577,11 @@ public class LatinIME extends InputMethodService implements
         registerReceiver(mRestartAfterDeviceUnlockReceiver, restartAfterUnlockFilter);
 
         StatsUtils.onCreate(mSettings.getCurrent(), mRichImm);
+
+        // Initialize voice input if model is already downloaded
+        if (ModelDownloader.isModelDownloaded(this)) {
+            initVoiceInput();
+        }
     }
 
     private void loadSettings() {
@@ -683,6 +693,10 @@ public class LatinIME extends InputMethodService implements
 
     @Override
     public void onDestroy() {
+        if (mVoiceInputManager != null) {
+            mVoiceInputManager.release();
+            mVoiceInputManager = null;
+        }
         mClipboardHistoryManager.onDestroy();
         mDictionaryFacilitator.closeDictionaries();
         mSettings.onDestroy();
@@ -1390,7 +1404,8 @@ public class LatinIME extends InputMethodService implements
     // completely replace #onCodeInput.
     public void onEvent(@NonNull final Event event) {
         if (KeyCode.VOICE_INPUT == event.getKeyCode()) {
-            mRichImm.switchToShortcutIme(this);
+            handleVoiceInput();
+            return;
         }
         final InputTransaction completeInputTransaction =
                 mInputLogic.onCodeInput(mSettings.getCurrent(), event,
@@ -1399,6 +1414,119 @@ public class LatinIME extends InputMethodService implements
         updateStateAfterInputTransaction(completeInputTransaction);
         mKeyboardSwitcher.onEvent(event, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
     }
+
+    // --- Voice input (whisper.cpp integration) ---
+
+    private void initVoiceInput() {
+        mVoiceInputManager = new VoiceInputManager(
+            this,
+            text -> {  // onResult
+                if (text != null && !text.isEmpty()) {
+                    mInputLogic.mConnection.commitText(text, 1);
+                }
+            },
+            state -> {  // onStateChange
+                switch (state) {
+                    case LISTENING:
+                        showVoiceStatus("\uD83C\uDFA4  Listening... tap mic to stop");
+                        break;
+                    case TRANSCRIBING:
+                        showVoiceStatus("\u23F3  Transcribing...");
+                        break;
+                    case ERROR:
+                        clearVoiceStatus();
+                        Toast.makeText(this, "Voice input error", Toast.LENGTH_SHORT).show();
+                        break;
+                    default: // IDLE
+                        clearVoiceStatus();
+                        break;
+                }
+            }
+        );
+        // Load model if available
+        java.io.File modelFile = mVoiceInputManager.getModelFile();
+        if (modelFile != null) {
+            mVoiceInputManager.loadModel(modelFile.getAbsolutePath());
+        }
+    }
+
+    private void showVoiceStatus(String message) {
+        if (mSuggestionStripView == null) return;
+        android.widget.TextView tv = new android.widget.TextView(mDisplayContext);
+        tv.setText(message);
+        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16);
+        tv.setGravity(android.view.Gravity.CENTER);
+        tv.setTextColor(Color.WHITE);
+        tv.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+        mSuggestionStripView.setExternalSuggestionView(tv, false);
+    }
+
+    private void clearVoiceStatus() {
+        if (mSuggestionStripView == null) return;
+        setNeutralSuggestionStrip();
+    }
+
+    private void handleVoiceInput() {
+        // Check permission first
+        if (!VoicePermissionActivity.Companion.hasRecordPermission(this)) {
+            startActivity(VoicePermissionActivity.Companion.createIntent(this));
+            return;
+        }
+
+        // Initialize voice manager on first use
+        if (mVoiceInputManager == null) {
+            initVoiceInput();
+        }
+
+        // Check if model is downloaded
+        if (!mVoiceInputManager.isModelLoaded() && mVoiceInputManager.getModelFile() == null) {
+            showVoiceStatus("\u2B07  Downloading voice model (31MB)...");
+            startModelDownload();
+            return;
+        }
+
+        // If model file exists but context not loaded yet, load it
+        if (!mVoiceInputManager.isModelLoaded()) {
+            java.io.File modelFile = mVoiceInputManager.getModelFile();
+            if (modelFile != null) {
+                mVoiceInputManager.loadModel(modelFile.getAbsolutePath());
+                showVoiceStatus("\u23F3  Loading voice model...");
+                return;
+            }
+        }
+
+        mVoiceInputManager.toggleRecording();
+    }
+
+    private void startModelDownload() {
+        new Thread(() -> {
+            boolean success = ModelDownloader.downloadDefaultModelBlocking(
+                LatinIME.this,
+                pct -> mHandler.post(() ->
+                    showVoiceStatus("\u2B07  Downloading voice model: " + pct + "%")
+                )
+            );
+            mHandler.post(() -> {
+                if (success) {
+                    clearVoiceStatus();
+                    Toast.makeText(this, "Voice model ready! Tap mic to start.", Toast.LENGTH_SHORT).show();
+                    if (mVoiceInputManager != null) {
+                        java.io.File modelFile = mVoiceInputManager.getModelFile();
+                        if (modelFile != null) {
+                            mVoiceInputManager.loadModel(modelFile.getAbsolutePath());
+                        }
+                    }
+                } else {
+                    clearVoiceStatus();
+                    Toast.makeText(this, "Download failed. Check internet and try again.", Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
+    }
+
+    // --- End voice input ---
 
     public void onTextInput(final String rawText) {
         // TODO: have the keyboard pass the correct key code when we need it.
