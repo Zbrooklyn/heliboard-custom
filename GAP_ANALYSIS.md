@@ -16,7 +16,7 @@
 | **Row count** | 1 row (toolbar OR suggestions, swaps) | 1 row (after latest fix) | YES | — |
 | **Icons** | 7: AI sparkle, clipboard, emoji, keyboard, settings, floating, "..." | 6: mic, clipboard, emoji, 1234, settings, incognito | PARTIAL | Different icons, different count |
 | **Icon distribution** | Evenly spaced across full width | Evenly spaced (weight=1, after fix) | YES | — |
-| **Icon style** | Circular with subtle dark bg (#3A3A3A-ish) | No per-icon background | NO | Samsung icons have circular dark background shapes |
+| **Icon style** | Circular with subtle dark bg (#3A3A3A-ish) | Pill-shaped dark bg (#333333) | CLOSE | Fixed in commit 9934620e |
 | **Background** | Subtle dark gray strip (~#1A1A1A) | adjustedBackground (subtle dark gray) | CLOSE | Fixed in commit eddce79c |
 | **Height** | ~44dp | 40dp | CLOSE | May need fine-tuning |
 | **Suggestion swap** | Suggestions replace toolbar when typing | Same (after latest fix) | YES | — |
@@ -56,7 +56,7 @@
 | **Hint text color** | Gray (~#808080) | Gray (#80FFFFFF = 50% white) | CLOSE | — |
 | **Letter text color** | White (#FFFFFF) | White (#FFFFFF) | YES | — |
 | **Key background** | Dark gray (~#333333) | Dark gray (#333333) | YES | — |
-| **Key gaps** | ~2-3px between keys | 0.8%p horizontal | CLOSE | May need pixel-level comparison |
+| **Key gaps** | ~3px between keys | 0.8%p horizontal, 2.0%p vertical | YES | Loosened in commit a7bc890a |
 
 ### 1.5 Home Row (a-l)
 
@@ -112,8 +112,8 @@
 |----------|---------|---------------------|-------|-----|
 | **Corner radius (normal)** | ~7-8dp | 8dp | YES | — |
 | **Corner radius (functional)** | Same as normal (~7-8dp) | 8dp | YES | — |
-| **Horizontal key gap** | ~2px (~0.5%p) | 0.5%p | YES | Fixed in commit eddce79c |
-| **Vertical key gap** | ~3px (~1.5%p) | 1.5%p | YES | Fixed in commit eddce79c |
+| **Horizontal key gap** | ~3dp (~0.8%p) | 0.8%p | YES | Loosened in commit a7bc890a |
+| **Vertical key gap** | ~4dp (~2.0%p) | 2.0%p | YES | Loosened in commit a7bc890a |
 | **Left/right padding** | ~1% | 1.0%p | YES | Fixed in commit eddce79c |
 | **Top padding** | ~1% | 1.0%p | YES | — |
 | **Bottom padding** | ~1% | 1.5%p | CLOSE | — |
@@ -167,6 +167,27 @@
 
 ---
 
+## Section 6b: Clipboard History View
+
+**Samsung reference:** `Screenshot_20260303_115216_Termux.jpg`
+
+| Property | Samsung | HeliBoard | Match | Gap |
+|----------|---------|-----------|-------|-----|
+| **Grid columns** | 3 columns | 3 columns | YES | Fixed in commit a7bc890a |
+| **Title bar** | "Clipboard" text + keyboard/pin/trash icons | Toolbar strip with tool keys | NO | Samsung has dedicated clipboard header |
+| **Section headers** | "Recent" / "Show less" toggle | None | NO | No section header support |
+| **Card corner radius** | ~16dp | 8dp (same as keyboard keys) | NO | Clipboard cards need larger radius |
+| **Card border** | Subtle thin outline on cards | No border (flat fill) | NO | Samsung cards have 1dp border |
+| **Pinned highlight** | Highlighted border color on pinned card | Small pin icon (18dp) | PARTIAL | Different pinned indicator style |
+| **Image thumbnails** | Shows copied images as thumbnails | Text only | NO | Would need ContentResolver + image rendering |
+| **Card text size** | ~16sp | Inherits from key label size | CLOSE | — |
+| **Card padding** | ~16dp internal | 4-8dp margins | CLOSE | Could increase for breathing room |
+| **Swipe to delete** | Swipe left to delete | Swipe left to delete | YES | — |
+| **Long press to pin** | Long press toggles pin | Long press toggles pin | YES | — |
+| **Empty state** | (not shown) | Kaomoji ¯\_(ツ)_/¯ | N/A | Different but fine |
+
+---
+
 ## Section 7: Summary Scorecard
 
 | Category | Items Checked | Match | Close | No Match | Score |
@@ -177,7 +198,8 @@
 | **Typography** | 5 | 4 | 1 | 0 | 90% |
 | **Behavior** | 5 | 3 | 1 | 1 | 70% |
 | **Icons** | 14 | 2 | 4 | 8 | 29% |
-| **OVERALL** | **53** | **34** | **9** | **10** | **73%** |
+| **Clipboard** | 12 | 4 | 2 | 6 | 42% |
+| **OVERALL** | **65** | **38** | **12** | **16** | **68%** |
 
 ---
 
@@ -197,8 +219,20 @@
 | # | Fix | Impact | Effort | Files |
 |---|-----|--------|--------|-------|
 | 5 | ~~**Number row text size**~~ | ~~HIGH~~ | ~~Medium~~ | DONE (eddce79c + 5a8affc3) — 62% ratio via LARGE_LETTER flag |
-| 6 | **Toolbar icon backgrounds** — add subtle circular dark backgrounds behind each icon | MEDIUM | Medium | Toolbar key setup in SuggestionStripView.kt + new drawable |
+| 6 | ~~**Toolbar icon backgrounds**~~ | ~~MEDIUM~~ | ~~Medium~~ | DONE (9934620e) — pill-shaped GradientDrawable behind each toolbar icon |
 | 7 | ~~**Toolbar strip background**~~ | ~~MEDIUM~~ | ~~Easy~~ | DONE (eddce79c) — adjustedBackground on AMOLED |
+
+### Tier 2b — Clipboard Fixes
+
+| # | Fix | Impact | Effort | Files |
+|---|-----|--------|--------|-------|
+| 12 | ~~**Clipboard 3-column grid**~~ | ~~HIGH~~ | ~~Easy~~ | DONE (a7bc890a) |
+| 13 | **Clipboard card corner radius** — increase from 8dp to 16dp | MEDIUM | Easy | New drawable or modify existing |
+| 14 | **Clipboard card border** — add 1dp subtle outline | MEDIUM | Easy | New drawable |
+| 15 | **Clipboard title bar** — add "Clipboard" header with back/pin/trash icons | HIGH | Medium | clipboard_history_view.xml + ClipboardHistoryView.kt |
+| 16 | **Clipboard section headers** — "Recent" / "Show less" | MEDIUM | Medium | ClipboardAdapter.kt (section headers in RecyclerView) |
+| 17 | **Clipboard pinned highlight** — border color change on pinned cards | LOW | Easy | ClipboardAdapter.kt |
+| 18 | **Clipboard image thumbnails** — show copied images | HIGH | Hard | ClipboardHistoryManager, ClipboardAdapter, ContentResolver |
 
 ### Tier 3 — Hard / Not Possible
 
@@ -219,10 +253,10 @@ top_padding:        1.0%p
 bottom_padding:     1.5%p
 left_padding:       1.0%p
 right_padding:      1.0%p
-vertical_gap:       1.5%p
-horizontal_gap:     0.5%p
-vertical_gap_narrow:   1.0%p
-horizontal_gap_narrow: 0.3%p
+vertical_gap:       2.0%p  (loosened in a7bc890a)
+horizontal_gap:     0.8%p  (loosened in a7bc890a)
+vertical_gap_narrow:   1.3%p
+horizontal_gap_narrow: 0.5%p
 ```
 
 ### Colors (AMOLED Black theme)
@@ -278,3 +312,6 @@ emoji:              conditional (emojiKeyEnabled)
 | cdf49603 | ROADMAP.md | Updated roadmap with progress |
 | eddce79c | 6 files | Close Samsung gap (hints, action key, spacing, number size, toolbar bg) |
 | 5a8affc3 | config.xml, symbols.txt | Number row size 72%→62%, home row hints to Samsung order |
+| 8ce9ea75 | GAP_ANALYSIS.md | Updated scorecard 65%→73% |
+| 9934620e | SuggestionStripView.kt | Samsung-style pill backgrounds on toolbar icons |
+| a7bc890a | config.xml | Loosen spacing (v:2.0%p, h:0.8%p), clipboard 3 columns |
