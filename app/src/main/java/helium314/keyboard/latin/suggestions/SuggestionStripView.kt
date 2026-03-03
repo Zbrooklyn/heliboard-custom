@@ -123,11 +123,22 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private val enabledToolKeyBackground = GradientDrawable()
     private var direction = 1 // 1 if LTR, -1 if RTL
 
+    private val density = resources.displayMetrics.density
     private val toolbarKeyLayoutParams = LinearLayout.LayoutParams(
         0,
         LinearLayout.LayoutParams.MATCH_PARENT,
         1f // equal weight — distributes toolbar keys evenly across full width
     )
+    // Samsung-style pill layout params with margin between icons
+    private val toolbarPillLayoutParams get() = LinearLayout.LayoutParams(
+        0,
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        1f
+    ).apply {
+        val hMargin = (3 * density).toInt()
+        val vMargin = (4 * density).toInt()
+        setMargins(hMargin, vMargin, hMargin, vMargin)
+    }
 
     init {
         val colors = Settings.getValues().mColors
@@ -151,11 +162,19 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val mToolbarMode = if (isGone) ToolbarMode.HIDDEN else Settings.getValues().mToolbarMode
 
         // toolbar keys setup — always populate toolbar (2-row layout: toolbar is always visible on top)
+        val toolbarPillColor = colors.get(ColorType.KEY_BACKGROUND)
         if (mToolbarMode != ToolbarMode.HIDDEN) {
             for (key in getEnabledToolbarKeys(context.prefs())) {
                 val button = createToolbarKey(context, key)
-                button.layoutParams = toolbarKeyLayoutParams
+                button.layoutParams = toolbarPillLayoutParams
                 setupKey(button, colors)
+                // Samsung-style pill background behind each toolbar icon
+                val pill = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 100f * density // large radius for full pill
+                    setColor(toolbarPillColor)
+                }
+                button.background = pill
                 toolbar.addView(button)
             }
         }
