@@ -28,10 +28,10 @@
 
     <fraction name="config_keyboard_top_padding_holo">1.0%p</fraction>
     <fraction name="config_keyboard_bottom_padding_holo">1.5%p</fraction>
-    <fraction name="config_key_vertical_gap_holo">1.5%p</fraction>
-    <fraction name="config_key_horizontal_gap_holo">0.5%p</fraction>
-    <fraction name="config_key_vertical_gap_holo_narrow">1.0%p</fraction>
-    <fraction name="config_key_horizontal_gap_holo_narrow">0.3%p</fraction>
+    <fraction name="config_key_vertical_gap_holo">2.0%p</fraction>
+    <fraction name="config_key_horizontal_gap_holo">0.8%p</fraction>
+    <fraction name="config_key_vertical_gap_holo_narrow">1.3%p</fraction>
+    <fraction name="config_key_horizontal_gap_holo_narrow">0.5%p</fraction>
     <!-- config_popup_keys_keyboard_key_height x -0.5 -->
     <dimen name="config_popup_keys_keyboard_vertical_correction_holo">-26.4dp</dimen>
     <dimen name="config_key_preview_offset_holo">40.0dp</dimen>
@@ -78,7 +78,7 @@
     <integer name="config_emoji_keyboard_max_recents_key_count">32</integer>
 
     <!-- Clipboard keyboard -->
-    <integer name="config_clipboard_keyboard_col_count">2</integer>
+    <integer name="config_clipboard_keyboard_col_count">3</integer>
 
     <!-- Key codes of hardware keys that can be used to toggle the Emoji layout.
          Each array defines a comma-separated tuple containing:
