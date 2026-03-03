@@ -114,6 +114,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private val toolbar: ViewGroup = findViewById(R.id.toolbar)
     private val toolbarContainer: View = findViewById(R.id.toolbar_container)
     private val pinnedKeys: ViewGroup = findViewById(R.id.pinned_keys)
+    private val bottomStripRow: ViewGroup = findViewById(R.id.bottom_strip_row)
     private val suggestionsStrip: ViewGroup = findViewById(R.id.suggestions_strip)
     private val toolbarExpandKey = findViewById<ImageButton>(R.id.suggestions_strip_toolbar_key)
     private val incognitoIcon = KeyboardIconsSet.instance.getNewDrawable(ToolbarKey.INCOGNITO.name, context)
@@ -170,6 +171,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                     pinnedKeyInToolbar.background = enabledToolKeyBackground
             }
         }
+        // Hide bottom row initially — show only when suggestions arrive
+        bottomStripRow.isVisible = pinnedKeys.childCount > 0
 
         updateKeys()
     }
@@ -235,6 +238,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         startIndexOfMoreSuggestions = layoutHelper.layoutAndReturnStartIndexOfMoreSuggestions(
             context, suggestedWords, suggestionsStrip, this
         )
+        // Show bottom row only when there are actual suggestions or pinned keys
+        bottomStripRow.isVisible = !suggestedWords.isEmpty || pinnedKeys.childCount > 0
         isExternalSuggestionVisible = false
         updateKeys()
     }
@@ -242,6 +247,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     fun setExternalSuggestionView(view: View?, addCloseButton: Boolean) {
         clear()
         isExternalSuggestionVisible = true
+        bottomStripRow.isVisible = true
 
         if (addCloseButton) {
             val wrapper = LinearLayout(context)
@@ -477,6 +483,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         suggestionsStrip.removeAllViews()
         if (DEBUG_SUGGESTIONS) removeAllDebugInfoViews()
         suggestionsStrip.isVisible = true
+        bottomStripRow.isVisible = false
         dismissMoreSuggestionsPanel()
         for (word in wordViews) {
             word.setOnTouchListener(null)
