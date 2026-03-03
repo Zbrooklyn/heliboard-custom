@@ -207,9 +207,9 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
                     hasBorders,
                     ContextCompat.getColor(context, R.color.gesture_trail_color_lxx_dark),
                     ContextCompat.getColor(context, R.color.background_amoled_black),
-                    ContextCompat.getColor(context, R.color.background_amoled_dark),
-                    ContextCompat.getColor(context, R.color.background_amoled_dark),
-                    ContextCompat.getColor(context, R.color.background_amoled_dark),
+                    ContextCompat.getColor(context, R.color.key_background_amoled),
+                    ContextCompat.getColor(context, R.color.functional_key_amoled),
+                    ContextCompat.getColor(context, R.color.key_background_amoled),
                     ContextCompat.getColor(context, R.color.key_text_color_lxx_dark),
                     ContextCompat.getColor(context, R.color.key_hint_letter_color_lxx_dark),
                     keyboardBackground = backgroundImage
