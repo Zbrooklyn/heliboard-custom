@@ -37,7 +37,7 @@
     <color name="key_background_functional_lxx_dark_border">#1f1f1f</color>
     <!-- Color resources for the old LXX_Dark_Amoled theme, now for THEME_BLACK. -->
     <color name="background_amoled_black">#000000</color>
-    <color name="background_amoled_dark">#1A1A1A</color>
+    <color name="background_amoled_dark">#2A2A2A</color>
 
     <!-- Color resources for LXX_Base theme. -->
     <color name="keyboard_background_lxx_base">@android:color/white</color>
