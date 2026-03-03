@@ -159,8 +159,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 toolbar.addView(button)
             }
         }
-        // toolbar is always visible in 2-row layout
+        // Samsung-style: single row — toolbar visible by default, suggestions swap in when available
         toolbarContainer.visibility = VISIBLE
+        bottomStripRow.visibility = GONE
         if (!isGone && !Settings.getValues().mSuggestionStripHiddenPerUserSettings) {
             for (pinnedKey in getPinnedToolbarKeys(context.prefs())) {
                 val button = createToolbarKey(context, pinnedKey)
@@ -172,8 +173,6 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                     pinnedKeyInToolbar.background = enabledToolKeyBackground
             }
         }
-        // Hide bottom row initially — show only when suggestions arrive
-        bottomStripRow.isVisible = pinnedKeys.childCount > 0
 
         updateKeys()
     }
@@ -219,9 +218,18 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     fun setToolbarVisibility(toolbarVisible: Boolean) {
-        // 2-row layout: toolbar is always visible on top, suggestions/pinned always on bottom
+        // Samsung-style: toolbar and suggestions swap in the same single row
         val locked = isDeviceLocked(context)
-        toolbarContainer.isVisible = !locked
+        if (locked) {
+            toolbarContainer.isVisible = false
+            bottomStripRow.isVisible = false
+        } else if (toolbarVisible) {
+            toolbarContainer.isVisible = true
+            bottomStripRow.isVisible = false
+        } else {
+            toolbarContainer.isVisible = false
+            bottomStripRow.isVisible = true
+        }
         pinnedKeys.isVisible = !locked
         suggestionsStrip.isVisible = true
 
@@ -239,8 +247,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         startIndexOfMoreSuggestions = layoutHelper.layoutAndReturnStartIndexOfMoreSuggestions(
             context, suggestedWords, suggestionsStrip, this
         )
-        // Show bottom row only when there are actual suggestions or pinned keys
-        bottomStripRow.isVisible = !suggestedWords.isEmpty || pinnedKeys.childCount > 0
+        // Samsung-style swap: suggestions replace toolbar in the same row
+        val hasSuggestions = !suggestedWords.isEmpty || pinnedKeys.childCount > 0
+        bottomStripRow.isVisible = hasSuggestions
+        toolbarContainer.isVisible = !hasSuggestions
         isExternalSuggestionVisible = false
         updateKeys()
     }
@@ -249,6 +259,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         clear()
         isExternalSuggestionVisible = true
         bottomStripRow.isVisible = true
+        toolbarContainer.isVisible = false
 
         if (addCloseButton) {
             val wrapper = LinearLayout(context)
@@ -484,7 +495,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         suggestionsStrip.removeAllViews()
         if (DEBUG_SUGGESTIONS) removeAllDebugInfoViews()
         suggestionsStrip.isVisible = true
+        // Samsung-style swap: show toolbar, hide suggestions
         bottomStripRow.isVisible = false
+        toolbarContainer.isVisible = true
         dismissMoreSuggestionsPanel()
         for (word in wordViews) {
             word.setOnTouchListener(null)
@@ -510,7 +523,6 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         updateVoiceKey()
         val settingsValues = Settings.getValues()
 
-        // 2-row layout: expand key is hidden (toolbar always visible on top row)
         if (settingsValues.mIncognitoModeEnabled) {
             toolbarExpandKey.setImageDrawable(incognitoIcon)
             toolbarExpandKey.isVisible = true
@@ -518,9 +530,12 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             toolbarExpandKey.isVisible = false
         }
 
-        // hide toolbar/pinned keys if device is locked
+        // hide everything if device is locked, otherwise don't override swap state
         val hideToolbarKeys = isDeviceLocked(context)
-        toolbarContainer.isVisible = !hideToolbarKeys
+        if (hideToolbarKeys) {
+            toolbarContainer.isVisible = false
+            bottomStripRow.isVisible = false
+        }
         pinnedKeys.isVisible = !hideToolbarKeys
         isExternalSuggestionVisible = false
     }

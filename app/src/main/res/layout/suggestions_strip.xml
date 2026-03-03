@@ -7,20 +7,18 @@
 
 <merge
     xmlns:android="http://schemas.android.com/apk/res/android">
-    <LinearLayout
-        android:animateLayoutChanges="true"
+    <!-- Single row: toolbar and suggestions swap in same space (Samsung-style) -->
+    <FrameLayout
         android:id="@+id/suggestions_strip_wrapper"
-        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:hapticFeedbackEnabled="false"
         android:soundEffectsEnabled="false">
-        <!-- Top row: toolbar keys (always visible, Samsung-style, evenly distributed) -->
+        <!-- Toolbar keys (visible when no suggestions) -->
         <LinearLayout
             android:id="@+id/toolbar_container"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="match_parent"
             android:visibility="visible">
             <LinearLayout
                 android:id="@+id/toolbar"
@@ -30,13 +28,13 @@
                 style="?attr/suggestionWordStyle">
             </LinearLayout>
         </LinearLayout>
-        <!-- Bottom row: suggestions + pinned keys -->
+        <!-- Suggestions + pinned keys (visible when suggestions exist, hides toolbar) -->
         <LinearLayout
             android:id="@+id/bottom_strip_row"
             android:orientation="horizontal"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_height="match_parent"
+            android:visibility="gone">
             <!-- Provide audio and haptic feedback by ourselves based on the keyboard settings.
                  We just need to ignore the system's audio and haptic feedback settings. -->
             <ImageButton
@@ -69,5 +67,5 @@
                 style="?attr/suggestionWordStyle">
             </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </FrameLayout>
 </merge>
