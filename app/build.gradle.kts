@@ -47,6 +47,7 @@ android {
             isShrinkResources = false
             isDebuggable = false
             isJniDebuggable = false
+            matchingFallbacks += "release"
         }
         debug {
             // "normal" debug has minify for smaller APK to fit the GitHub 25 MB limit when zipped
@@ -62,6 +63,7 @@ android {
         create("runTests") { // build variant for running tests on CI that skips tests known to fail
             isMinifyEnabled = false
             isJniDebuggable = false
+            matchingFallbacks += "debug"
         }
         create("debugNoMinify") { // for faster builds in IDE
             isDebuggable = true
@@ -69,6 +71,7 @@ android {
             isJniDebuggable = false
             signingConfig = signingConfigs.getByName("debug")
             applicationIdSuffix = ".debug"
+            matchingFallbacks += "debug"
         }
         base.archivesBaseName = "HeliBoard_" + defaultConfig.versionName
         // got a little too big for GitHub after some dependency upgrades, so we remove the largest dictionary
