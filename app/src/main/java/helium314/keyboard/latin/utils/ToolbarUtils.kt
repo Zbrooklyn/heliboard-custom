@@ -131,7 +131,8 @@ val defaultPinnedToolbarPref = entries.filterNot { it == CLOSE_HISTORY }.joinToS
 }
 
 val defaultClipboardToolbarPref by lazy {
-    val default = listOf(CLEAR_CLIPBOARD, UP, DOWN, LEFT, RIGHT, UNDO, CUT, COPY, PASTE, SELECT_WORD, CLOSE_HISTORY)
+    // Curated set: core clipboard operations + select all (HeliBoard advantage over Samsung)
+    val default = listOf(CLOSE_HISTORY, SELECT_ALL, CUT, COPY, PASTE, CLEAR_CLIPBOARD)
     val others = entries.filterNot { it in default }
     default.joinToString(Separators.ENTRY) { it.name + Separators.KV + true } + Separators.ENTRY +
             others.joinToString(Separators.ENTRY) { it.name + Separators.KV + false }

@@ -55,11 +55,13 @@ class ClipboardLayoutParams(ctx: Context) {
     }
 
     fun setItemProperties(view: View) {
+        val density = view.resources.displayMetrics.density
+        val minGap = (4 * density).toInt() // minimum 4dp between clipboard cards
         (view.layoutParams as RecyclerView.LayoutParams).apply {
-            topMargin = keyHorizontalGap / 2
-            bottomMargin = keyVerticalGap / 2
-            marginStart = keyHorizontalGap / 2
-            marginEnd = keyHorizontalGap / 2
+            topMargin = maxOf(keyHorizontalGap / 2, minGap)
+            bottomMargin = maxOf(keyVerticalGap / 2, minGap)
+            marginStart = maxOf(keyHorizontalGap / 2, minGap)
+            marginEnd = maxOf(keyHorizontalGap / 2, minGap)
             view.layoutParams = this
         }
     }

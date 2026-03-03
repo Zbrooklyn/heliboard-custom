@@ -5,6 +5,7 @@ package helium314.keyboard.keyboard.clipboard
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
@@ -103,12 +104,20 @@ class ClipboardHistoryView @JvmOverloads constructor(
             placeholderView = this@ClipboardHistoryView.placeholderView
         }
         val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip
+        val density = resources.displayMetrics.density
+        val pillColor = colors.get(ColorType.KEY_BACKGROUND)
         toolbarKeys.forEach {
             clipboardStrip.addView(it)
             it.setOnClickListener(this@ClipboardHistoryView)
             it.setOnLongClickListener(this@ClipboardHistoryView)
             colors.setColor(it, ColorType.TOOL_BAR_KEY)
-            colors.setBackground(it, ColorType.STRIP_BACKGROUND)
+            // Pill-style background — consistent with main keyboard toolbar
+            val pill = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 100f * density
+                setColor(pillColor)
+            }
+            it.background = pill
         }
     }
 
@@ -122,9 +131,15 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     private fun setupToolbarKeys() {
-        // set layout params
-        val toolbarKeyLayoutParams = LayoutParams(resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_edge_key_width), LayoutParams.MATCH_PARENT)
-        toolbarKeys.forEach { it.layoutParams = toolbarKeyLayoutParams }
+        // Even distribution with pill margins — matches main keyboard toolbar
+        val density = resources.displayMetrics.density
+        val hMargin = (3 * density).toInt()
+        val vMargin = (4 * density).toInt()
+        toolbarKeys.forEach {
+            it.layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply {
+                setMargins(hMargin, vMargin, hMargin, vMargin)
+            }
+        }
     }
 
     private fun setupBottomRowKeyboard(editorInfo: EditorInfo, listener: KeyboardActionListener) {

@@ -57,7 +57,7 @@ class ClipboardAdapter(
                 setOnClickListener(this@ViewHolder)
                 setOnTouchListener(this@ViewHolder)
                 setOnLongClickListener(this@ViewHolder)
-                setBackgroundResource(itemBackgroundId)
+                setBackgroundResource(R.drawable.clipboard_entry_background)
                 isHapticFeedbackEnabled = false
             }
             Settings.getValues().mColors.setBackground(view, ColorType.KEY_BACKGROUND)

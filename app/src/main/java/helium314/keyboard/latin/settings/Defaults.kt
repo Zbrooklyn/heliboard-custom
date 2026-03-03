@@ -3,7 +3,6 @@ package helium314.keyboard.latin.settings
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
-import android.util.TypedValue
 import android.view.Gravity
 import helium314.keyboard.keyboard.KeyboardTheme
 import helium314.keyboard.latin.BuildConfig
@@ -19,9 +18,9 @@ import helium314.keyboard.latin.utils.defaultToolbarPref
 object Defaults {
     fun initDynamicDefaults(context: Context) {
         PREF_GESTURE_DYNAMIC_PREVIEW_FOLLOW_SYSTEM = getTransitionAnimationScale(context) != 0.0f
-        val dm = context.resources.displayMetrics
-        val px600 = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 600f, dm)
-        PREF_POPUP_ON = dm.widthPixels >= px600 || dm.heightPixels >= px600
+        // Samsung-style: no popup preview by default on any screen size.
+        // Users can re-enable in Settings → Preferences → "Popup on keypress".
+        PREF_POPUP_ON = false
     }
 
     // must correspond to a file name
