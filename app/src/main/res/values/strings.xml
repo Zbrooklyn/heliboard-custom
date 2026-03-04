@@ -44,6 +44,7 @@
     <string name="settings_screen_advanced">Advanced</string>
     <!-- Settings screen title for voice and AI settings -->
     <string name="settings_screen_voice_ai">Voice &amp; AI</string>
+    <string name="settings_screen_theme_size">Theme &amp; Size</string>
     <string name="settings_category_whisperclick">WhisperClick</string>
     <string name="settings_category_classic">Classic Settings</string>
     <string name="voice_ai_stt_mode">Speech-to-text mode</string>
@@ -77,6 +78,10 @@
     <string name="voice_ai_test_api_key_testing">Testing\u2026</string>
     <string name="voice_ai_test_api_key_valid">API key is valid</string>
     <string name="voice_ai_share">Share</string>
+    <string name="reset_layout_title">Reset layout &amp; preferences</string>
+    <string name="reset_layout_description">Reset keyboard appearance, toolbar order, and typing preferences to defaults. API keys, voice models, and AI settings are preserved.</string>
+    <string name="reset_layout_confirm">Reset to defaults? API keys and voice models will be kept.</string>
+    <string name="reset_layout_done">Layout and preferences reset to defaults</string>
     <!-- Settings screen title for keyboard theme settings -->
     <string name="settings_screen_theme">Theme</string>
     <!-- Settings category title for Preference/Input settings -->
@@ -95,6 +100,7 @@
     <string name="settings_category_experimental">Experimental</string>
     <!-- Settings category title for Appearance & Layout/Misc -->
     <string name="settings_category_miscellaneous">Miscellaneous</string>
+    <string name="settings_category_size">Size</string>
     <!--  Option for enabling or disabling the split keyboard layout in portrait mode.-->
     <string name="enable_split_keyboard">Enable split keyboard</string>
     <!--  Option for enabling or disabling the split keyboard layout in landscape mode.-->

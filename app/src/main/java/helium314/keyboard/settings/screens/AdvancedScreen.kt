@@ -4,6 +4,7 @@ package helium314.keyboard.settings.screens
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
+import android.widget.Toast
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,6 +46,7 @@ import helium314.keyboard.settings.SettingsDestination
 import helium314.keyboard.settings.preferences.SliderPreference
 import helium314.keyboard.settings.preferences.SwitchPreference
 import helium314.keyboard.settings.Theme
+import helium314.keyboard.settings.dialogs.ConfirmationDialog
 import helium314.keyboard.settings.dialogs.TextInputDialog
 import helium314.keyboard.settings.preferences.BackupRestorePreference
 import helium314.keyboard.settings.preferences.LoadGestureLibPreference
@@ -83,6 +85,7 @@ fun AdvancedSettingsScreen(
         Settings.PREF_MORE_POPUP_KEYS,
         Settings.PREF_TIMESTAMP_FORMAT,
         SettingsWithoutKey.BACKUP_RESTORE,
+        SettingsWithoutKey.RESET_LAYOUT,
         if (BuildConfig.DEBUG || prefs.getBoolean(DebugSettings.PREF_SHOW_DEBUG_SETTINGS, Defaults.PREF_SHOW_DEBUG_SETTINGS))
             SettingsWithoutKey.DEBUG_SETTINGS else null,
         R.string.settings_category_experimental,
@@ -207,6 +210,9 @@ fun createAdvancedSettings(context: Context) = listOf(
     Setting(context, SettingsWithoutKey.BACKUP_RESTORE, R.string.backup_restore_title) {
         BackupRestorePreference(it)
     },
+    Setting(context, SettingsWithoutKey.RESET_LAYOUT, R.string.reset_layout_title, R.string.reset_layout_description) {
+        ResetLayoutPreference(it)
+    },
     Setting(context, Settings.PREF_TIMESTAMP_FORMAT, R.string.timestamp_format_title) { setting ->
         TextInputPreference(setting, Defaults.PREF_TIMESTAMP_FORMAT, stringResource(R.string.timestamp_description)) { checkTimestampFormat(it) }
     },
@@ -256,6 +262,70 @@ fun createAdvancedSettings(context: Context) = listOf(
         LoadGestureLibPreference(it)
     },
 )
+
+@Composable
+private fun ResetLayoutPreference(setting: Setting) {
+    var showDialog by rememberSaveable { mutableStateOf(false) }
+    val ctx = LocalContext.current
+    Preference(
+        name = setting.title,
+        description = setting.description,
+        onClick = { showDialog = true }
+    )
+    if (showDialog) {
+        ConfirmationDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(stringResource(R.string.reset_layout_title)) },
+            content = { Text(stringResource(R.string.reset_layout_confirm)) },
+            onConfirmed = {
+                resetLayoutAndPreferences(ctx)
+                Toast.makeText(ctx, R.string.reset_layout_done, Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+}
+
+@SuppressLint("ApplySharedPref")
+private fun resetLayoutAndPreferences(context: Context) {
+    // Keys to preserve across reset (voice, AI, model settings)
+    val preserveKeys = setOf(
+        Settings.PREF_AI_PROVIDER,
+        Settings.PREF_GEMINI_API_KEY,
+        Settings.PREF_OPENAI_API_KEY,
+        Settings.PREF_STT_MODE,
+        Settings.PREF_AI_ACTIVE_MODEL,
+        "whisperclick_clipboard_toolbar_migrated",
+    )
+
+    val prefs = context.prefs()
+    // Save preserved values
+    val preserved = mutableMapOf<String, Any?>()
+    for (key in preserveKeys) {
+        if (prefs.contains(key)) {
+            preserved[key] = prefs.all[key]
+        }
+    }
+
+    // Clear all preferences
+    prefs.edit { clear() }
+
+    // Restore preserved values
+    prefs.edit {
+        for ((key, value) in preserved) {
+            when (value) {
+                is String -> putString(key, value)
+                is Boolean -> putBoolean(key, value)
+                is Int -> putInt(key, value)
+                is Float -> putFloat(key, value)
+                is Long -> putLong(key, value)
+            }
+        }
+    }
+
+    // Force keyboard to reload with new defaults
+    KeyboardLayoutSet.onSystemLocaleChanged()
+    KeyboardSwitcher.getInstance().setThemeNeedsReload()
+}
 
 @Preview
 @Composable

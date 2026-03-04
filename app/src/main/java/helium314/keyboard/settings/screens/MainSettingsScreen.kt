@@ -44,6 +44,7 @@ fun MainSettingsScreen(
     onClickLayouts: () -> Unit,
     onClickDictionaries: () -> Unit,
     onClickVoiceAI: () -> Unit,
+    onClickThemeSize: () -> Unit,
     onClickBack: () -> Unit,
 ) {
     SearchSettingsScreen(
@@ -62,6 +63,11 @@ fun MainSettingsScreen(
                     name = stringResource(R.string.settings_screen_voice_ai),
                     onClick = onClickVoiceAI,
                     icon = R.drawable.ic_rewrite
+                ) { NextScreenIcon() }
+                Preference(
+                    name = stringResource(R.string.settings_screen_theme_size),
+                    onClick = onClickThemeSize,
+                    icon = R.drawable.ic_settings_appearance
                 ) { NextScreenIcon() }
 
                 // ── Classic Settings (legacy HeliBoard) ──
@@ -136,7 +142,7 @@ private fun PreviewScreen() {
     initPreview(LocalContext.current)
     Theme(previewDark) {
         Surface {
-            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 }

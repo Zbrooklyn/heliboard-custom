@@ -87,4 +87,5 @@ object SettingsWithoutKey {
     const val VOICE_BENCHMARK = "voice_benchmark"
     const val ACTIVITY_LOG = "activity_log"
     const val TEST_API_KEY = "test_api_key"
+    const val RESET_LAYOUT = "reset_layout"
 }
