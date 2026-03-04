@@ -69,6 +69,10 @@ fun VoiceAIScreen(onClickBack: () -> Unit) {
         // AI Rewrite
         R.string.voice_ai_category_rewrite,
         Settings.PREF_AI_PROVIDER,
+        Settings.PREF_DEFAULT_REWRITE_STYLE,
+        // Behavior
+        R.string.voice_ai_category_behavior,
+        Settings.PREF_VOICE_HAPTIC,
         // Diagnostics
         R.string.voice_ai_category_diagnostics,
         SettingsWithoutKey.VOICE_BENCHMARK,
@@ -110,6 +114,32 @@ fun createVoiceAISettings(context: Context) = listOf(
                 "OpenAI (GPT)" to "openai",
             ),
             default = Defaults.PREF_AI_PROVIDER,
+        )
+    },
+    Setting(context, Settings.PREF_DEFAULT_REWRITE_STYLE, R.string.voice_ai_default_style, R.string.voice_ai_default_style_summary) {
+        ListPreference(
+            setting = it,
+            items = listOf(
+                context.getString(R.string.voice_ai_style_all) to "all",
+                context.getString(R.string.voice_ai_style_clean) to "clean",
+                context.getString(R.string.voice_ai_style_professional) to "professional",
+                context.getString(R.string.voice_ai_style_casual) to "casual",
+                context.getString(R.string.voice_ai_style_concise) to "concise",
+                context.getString(R.string.voice_ai_style_emojify) to "emojify",
+            ),
+            default = Defaults.PREF_DEFAULT_REWRITE_STYLE,
+        )
+    },
+    Setting(context, Settings.PREF_VOICE_HAPTIC, R.string.voice_ai_haptic, R.string.voice_ai_haptic_summary) {
+        ListPreference(
+            setting = it,
+            items = listOf(
+                context.getString(R.string.voice_ai_haptic_off) to "off",
+                context.getString(R.string.voice_ai_haptic_light) to "light",
+                context.getString(R.string.voice_ai_haptic_medium) to "medium",
+                context.getString(R.string.voice_ai_haptic_strong) to "strong",
+            ),
+            default = Defaults.PREF_VOICE_HAPTIC,
         )
     },
     Setting(context, Settings.PREF_OPENAI_API_KEY, R.string.voice_ai_openai_key) {

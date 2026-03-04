@@ -15,4 +15,11 @@ object RewriteHelper {
             provider.rewriteAll(apiKey, text)
         }
     }
+
+    @JvmStatic
+    fun rewriteSingleBlocking(provider: RewriteProvider, apiKey: String, text: String, style: String): String {
+        return runBlocking(Dispatchers.IO) {
+            provider.rewriteText(apiKey, text, style)
+        }
+    }
 }

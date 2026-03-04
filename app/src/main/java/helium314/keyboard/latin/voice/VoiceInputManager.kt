@@ -14,14 +14,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class VoiceInputManager(
     private val context: Context,
     private val onResult: ResultCallback,
-    private val onStateChange: StateCallback
+    private val onStateChange: StateCallback,
+    private val onPartialResult: PartialResultCallback? = null
 ) {
     enum class VoiceState { IDLE, LISTENING, TRANSCRIBING, ERROR }
 
@@ -31,6 +31,10 @@ class VoiceInputManager(
 
     fun interface StateCallback {
         fun onStateChange(state: VoiceState)
+    }
+
+    fun interface PartialResultCallback {
+        fun onPartialResult(text: String)
     }
 
     private val recorder = Recorder()
@@ -136,7 +140,7 @@ class VoiceInputManager(
         }
     }
 
-    /** Start Google SpeechRecognizer — handles its own audio. Must run on main thread. */
+    /** Start Google SpeechRecognizer in continuous mode. Must run on main thread. */
     private fun startGoogleStt() {
         val client = googleSttClient ?: GoogleSttClient(context).also { googleSttClient = it }
 
@@ -144,10 +148,6 @@ class VoiceInputManager(
             Log.e(TAG, "Google speech recognition not available on this device")
             state = VoiceState.ERROR
             onStateChange.onStateChange(state)
-            mainHandler.postDelayed({
-                state = VoiceState.IDLE
-                onStateChange.onStateChange(state)
-            }, 2000)
             return
         }
 
@@ -155,6 +155,7 @@ class VoiceInputManager(
         mainHandler.post {
             client.startListening(
                 onResult = { text ->
+                    // Only called when user explicitly stops via stopAndFinalize()
                     state = VoiceState.IDLE
                     if (text.isNullOrBlank()) {
                         onResult.onResult("")
@@ -167,13 +168,12 @@ class VoiceInputManager(
                     Log.e(TAG, "Google STT error: $errorMessage")
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
-                    mainHandler.postDelayed({
-                        state = VoiceState.IDLE
-                        onStateChange.onStateChange(state)
-                    }, 2000)
                 },
                 onListeningStarted = {
                     // State already set to LISTENING before this callback
+                },
+                onPartial = onPartialResult?.let { callback ->
+                    GoogleSttClient.PartialCallback { text -> callback.onPartialResult(text) }
                 }
             )
             state = VoiceState.LISTENING
@@ -190,12 +190,12 @@ class VoiceInputManager(
         }
     }
 
-    /** Stop Google STT — the recognizer will deliver results via its callback. */
+    /** Stop Google STT — finalizes all accumulated text and delivers via callback. */
     private fun stopGoogleStt() {
         state = VoiceState.TRANSCRIBING
         onStateChange.onStateChange(state)
         mainHandler.post {
-            googleSttClient?.stopListening()
+            googleSttClient?.stopAndFinalize()
         }
     }
 
@@ -233,12 +233,6 @@ class VoiceInputManager(
                 Log.e(TAG, "Transcription failed", e)
                 withContext(Dispatchers.Main) {
                     state = VoiceState.ERROR
-                    onStateChange.onStateChange(state)
-                }
-                // Show error state for 2s so user can see it, then auto-recover
-                delay(2000)
-                withContext(Dispatchers.Main) {
-                    state = VoiceState.IDLE
                     onStateChange.onStateChange(state)
                 }
             }

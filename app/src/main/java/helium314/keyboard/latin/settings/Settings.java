@@ -190,6 +190,8 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_OPENAI_API_KEY = "openai_api_key";
     public static final String PREF_STT_MODE = "stt_mode";
     public static final String PREF_AI_ACTIVE_MODEL = "active_voice_model";
+    public static final String PREF_VOICE_HAPTIC = "voice_haptic_level";
+    public static final String PREF_DEFAULT_REWRITE_STYLE = "default_rewrite_style";
 
     public static final String PREF_VERSION_CODE = "version_code";
     public static final String PREF_LIBRARY_CHECKSUM = "lib_checksum";

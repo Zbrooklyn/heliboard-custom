@@ -64,7 +64,7 @@ private class AudioCaptureThread(
 
             try {
                 audioRecord.startRecording()
-                while (!quit.get() && totalSamples < MAX_SAMPLES) {
+                while (!quit.get()) {
                     val read = audioRecord.read(buffer, 0, buffer.size)
                     if (read > 0) {
                         chunks.add(buffer.copyOfRange(0, read))
@@ -98,7 +98,5 @@ private class AudioCaptureThread(
 
     companion object {
         const val SAMPLE_RATE = 16000
-        private const val MAX_DURATION_SECONDS = 300 // 5 minutes
-        const val MAX_SAMPLES = SAMPLE_RATE * MAX_DURATION_SECONDS
     }
 }

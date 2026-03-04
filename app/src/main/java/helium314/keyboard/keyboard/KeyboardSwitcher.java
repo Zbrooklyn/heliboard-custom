@@ -23,6 +23,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodSubtype;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -74,6 +75,11 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private FeatureDrawerView mFeatureDrawerView;
     private VoiceInputModeView mVoiceInputModeView;
     private View mResizeHandle;
+    private View mResizeOverlay;
+    private View mResizeDragHandle;
+    private View mResizeDoneBtn;
+    private View mResizeResetBtn;
+    private boolean mResizeModeActive;
     private TextView mFakeToastView;
     private LatinIME mLatinIME;
     private RichInputMethodManager mRichImm;
@@ -434,60 +440,146 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         return mFeatureDrawerView != null && mFeatureDrawerView.isShown();
     }
 
-    /** Show/hide the drag-to-resize handle above the keyboard. */
+    /** Toggle Samsung-style keyboard resize overlay. */
     public void toggleResizeMode() {
-        if (mResizeHandle == null) return;
-        final boolean show = mResizeHandle.getVisibility() != View.VISIBLE;
-        mResizeHandle.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (mResizeOverlay == null) return;
+        if (mResizeModeActive) {
+            exitResizeMode(true);
+        } else {
+            enterResizeMode();
+        }
+    }
+
+    private void enterResizeMode() {
+        mResizeModeActive = true;
+        // Show overlay and dim keyboard
+        if (mResizeOverlay != null) mResizeOverlay.setVisibility(View.VISIBLE);
+        if (mKeyboardView != null) mKeyboardView.setAlpha(0.4f);
+        // Hide old handle (kept for compat but not used)
+        if (mResizeHandle != null) mResizeHandle.setVisibility(View.GONE);
+    }
+
+    private void exitResizeMode(boolean rebuild) {
+        mResizeModeActive = false;
+        // Hide overlay and restore keyboard
+        if (mResizeOverlay != null) mResizeOverlay.setVisibility(View.GONE);
+        if (mKeyboardView != null) mKeyboardView.setAlpha(1f);
+        // Reset visual scale
+        if (mMainKeyboardFrame != null) mMainKeyboardFrame.setScaleY(1f);
+        if (rebuild) {
+            setThemeNeedsReload();
+            reloadMainKeyboard();
+        }
     }
 
     public boolean isResizeModeActive() {
-        return mResizeHandle != null && mResizeHandle.getVisibility() == View.VISIBLE;
+        return mResizeModeActive;
     }
 
     @android.annotation.SuppressLint("ClickableViewAccessibility")
-    private void setupResizeHandle(final Context context) {
-        if (mResizeHandle == null) return;
+    private void setupResizeOverlay(final Context context) {
+        if (mResizeOverlay == null) return;
         final float density = context.getResources().getDisplayMetrics().density;
+        final int blueColor = 0xFF4285F4; // Google blue
 
-        // Draw a small pill indicator in the center of the handle
-        android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
-        pill.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-        pill.setCornerRadius(3 * density);
-        pill.setColor(0x40808080); // semi-transparent gray
-        pill.setSize((int)(40 * density), (int)(4 * density));
-        android.graphics.drawable.InsetDrawable inset = new android.graphics.drawable.InsetDrawable(
-            pill, 0, (int)(4 * density), 0, (int)(4 * density));
-        mResizeHandle.setBackground(inset);
+        // --- Style the overlay border (blue 4dp stroke) ---
+        android.graphics.drawable.GradientDrawable border = new android.graphics.drawable.GradientDrawable();
+        border.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        border.setStroke((int)(4 * density), blueColor);
+        border.setColor(0x00000000); // transparent fill
+        mResizeOverlay.setBackground(border);
 
+        // --- Style center drag handle (blue circle) ---
+        if (mResizeDragHandle != null) {
+            android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+            circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            circle.setColor(blueColor);
+            mResizeDragHandle.setBackground(circle);
+        }
+
+        // --- Style edge tabs (blue rounded rects) ---
+        int[][] tabIds = {
+            {R.id.resize_top_tab},
+            {R.id.resize_left_tab},
+            {R.id.resize_right_tab}
+        };
+        for (int[] ids : tabIds) {
+            View tab = mResizeOverlay.findViewById(ids[0]);
+            if (tab != null) {
+                android.graphics.drawable.GradientDrawable tabBg = new android.graphics.drawable.GradientDrawable();
+                tabBg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                tabBg.setCornerRadius(3 * density);
+                tabBg.setColor(blueColor);
+                tab.setBackground(tabBg);
+            }
+        }
+
+        // --- Style Reset and Done buttons (rounded dark background) ---
+        View[] buttons = {mResizeResetBtn, mResizeDoneBtn};
+        for (View btn : buttons) {
+            if (btn != null) {
+                android.graphics.drawable.GradientDrawable btnBg = new android.graphics.drawable.GradientDrawable();
+                btnBg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                btnBg.setCornerRadius(20 * density);
+                btnBg.setColor(0xDD333333); // dark semi-transparent
+                btn.setBackground(btnBg);
+            }
+        }
+
+        // --- Drag handle touch listener ---
         final float[] startY = {0f};
         final float[] startScale = {1f};
         final float[] pendingScale = {1f};
-        mResizeHandle.setOnTouchListener((v, event) -> {
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_DOWN:
-                    startY[0] = event.getRawY();
-                    startScale[0] = Settings.getValues().mKeyboardHeightScale;
-                    pendingScale[0] = startScale[0];
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    float deltaY = startY[0] - event.getRawY(); // drag up = bigger
-                    float deltaPct = deltaY / (200 * density); // ~200dp drag = full range
-                    pendingScale[0] = Math.max(0.5f, Math.min(1.5f, startScale[0] + deltaPct));
-                    return true;
-                case MotionEvent.ACTION_UP:
-                    // Apply the new scale on finger release
-                    if (Math.abs(pendingScale[0] - startScale[0]) >= 0.02f) {
-                        Settings.getInstance().writeHeightScale(pendingScale[0]);
-                        setThemeNeedsReload();
-                        reloadMainKeyboard();
-                    }
-                    return true;
-                case MotionEvent.ACTION_CANCEL:
-                    return true;
-            }
-            return false;
-        });
+        if (mResizeDragHandle != null) {
+            mResizeDragHandle.setOnTouchListener((v, event) -> {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        startY[0] = event.getRawY();
+                        startScale[0] = Settings.getValues().mKeyboardHeightScale;
+                        pendingScale[0] = startScale[0];
+                        if (mMainKeyboardFrame != null) {
+                            mMainKeyboardFrame.setPivotY(mMainKeyboardFrame.getHeight());
+                        }
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        float deltaY = startY[0] - event.getRawY();
+                        float deltaPct = deltaY / (200 * density);
+                        pendingScale[0] = Math.max(0.5f, Math.min(1.5f, startScale[0] + deltaPct));
+                        if (mMainKeyboardFrame != null) {
+                            float visualScale = pendingScale[0] / startScale[0];
+                            mMainKeyboardFrame.setScaleY(visualScale);
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        if (Math.abs(pendingScale[0] - startScale[0]) >= 0.02f) {
+                            Settings.getInstance().writeHeightScale(pendingScale[0]);
+                        }
+                        return true;
+                    case MotionEvent.ACTION_CANCEL:
+                        if (mMainKeyboardFrame != null) {
+                            mMainKeyboardFrame.setScaleY(1f);
+                        }
+                        return true;
+                }
+                return false;
+            });
+        }
+
+        // --- Done button: exit resize mode, rebuild keyboard ---
+        if (mResizeDoneBtn != null) {
+            mResizeDoneBtn.setOnClickListener(v -> exitResizeMode(true));
+        }
+
+        // --- Reset button: restore default scale, stay in resize mode ---
+        if (mResizeResetBtn != null) {
+            mResizeResetBtn.setOnClickListener(v -> {
+                Settings.getInstance().writeHeightScale(1.0f);
+                // Reset visual scale preview
+                if (mMainKeyboardFrame != null) {
+                    mMainKeyboardFrame.setScaleY(1f);
+                }
+            });
+        }
     }
 
     /** Enter minimal voice keyboard mode — large mic, status, no QWERTY. */
@@ -858,7 +950,14 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mVoiceInputModeView = mCurrentInputView.findViewById(R.id.voice_input_mode_view);
         mFakeToastView = mCurrentInputView.findViewById(R.id.fakeToast);
         mResizeHandle = mCurrentInputView.findViewById(R.id.keyboard_resize_handle);
-        setupResizeHandle(displayContext);
+        mResizeOverlay = mCurrentInputView.findViewById(R.id.resize_mode_overlay);
+        if (mResizeOverlay != null) {
+            mResizeDragHandle = mResizeOverlay.findViewById(R.id.resize_drag_handle);
+            mResizeDoneBtn = mResizeOverlay.findViewById(R.id.resize_done_btn);
+            mResizeResetBtn = mResizeOverlay.findViewById(R.id.resize_reset_btn);
+        }
+        mResizeModeActive = false;
+        setupResizeOverlay(displayContext);
 
         mKeyboardViewWrapper = mCurrentInputView.findViewById(R.id.keyboard_view_wrapper);
         mKeyboardViewWrapper.setKeyboardActionListener(mLatinIME.mKeyboardActionListener);
@@ -906,19 +1005,26 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     }
 
     /** Marks the theme as outdated. The theme will be reloaded next time the keyboard is shown.
-     *  If the keyboard is currently showing, theme will be reloaded immediately. */
+     *  If the keyboard is currently showing, theme will be reloaded in-place without hide/show. */
     public void setThemeNeedsReload() {
         mThemeNeedsReload = true;
         if (mLatinIME == null || !mLatinIME.isInputViewShown())
             return; // will be reloaded right before showing IME
 
-        // Hide and show IME, showing will trigger the reload.
-        // Reloading while IME is shown is glitchy, and hiding / showing is so fast the user shouldn't notice.
-        mLatinIME.hideWindow();
+        // Reload in-place: rebuild the input view without hiding/showing the window.
+        // The old approach (hideWindow + showWindow) caused a visible dismiss/reappear flicker.
         try {
-            mLatinIME.showWindow(true);
-        } catch (IllegalStateException e) {
-            // in tests isInputViewShown returns true, but showWindow throws "IllegalStateException: Window token is not set yet."
+            final Context displayContext = KtxKt.getDisplayContext(mLatinIME);
+            updateKeyboardTheme(displayContext);
+        } catch (Exception e) {
+            // Fallback: if in-place reload fails, use the old hide/show approach
+            mThemeNeedsReload = true;
+            mLatinIME.hideWindow();
+            try {
+                mLatinIME.showWindow(true);
+            } catch (IllegalStateException e2) {
+                // in tests isInputViewShown returns true, but showWindow throws
+            }
         }
     }
 }

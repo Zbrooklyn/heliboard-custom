@@ -12,6 +12,11 @@ import android.util.Log
 /**
  * Google on-device speech-to-text using Android's SpeechRecognizer API.
  * No API key needed — uses the device's built-in Google speech recognition.
+ *
+ * Operates in continuous mode: when the recognizer auto-stops (silence timeout,
+ * end of utterance), it accumulates the result and auto-restarts. Recording only
+ * stops when [stopAndFinalize] is called explicitly by the user.
+ *
  * Must be called from the main thread.
  */
 class GoogleSttClient(private val context: Context) {
@@ -19,6 +24,16 @@ class GoogleSttClient(private val context: Context) {
     private var speechRecognizer: SpeechRecognizer? = null
     @Volatile
     private var isListening = false
+    @Volatile
+    private var userStopped = false
+
+    // Accumulated text from multiple recognition sessions
+    private val accumulatedText = StringBuilder()
+
+    // Callbacks — stored for auto-restart
+    private var currentOnResult: ResultCallback? = null
+    private var currentOnError: ErrorCallback? = null
+    private var currentOnPartial: PartialCallback? = null
 
     fun interface ResultCallback {
         fun onResult(text: String?)
@@ -28,30 +43,47 @@ class GoogleSttClient(private val context: Context) {
         fun onError(errorMessage: String)
     }
 
+    fun interface PartialCallback {
+        fun onPartial(text: String)
+    }
+
     /** Check if speech recognition is available on this device. */
     fun isAvailable(): Boolean {
         return SpeechRecognizer.isRecognitionAvailable(context)
     }
 
     /**
-     * Start listening for speech. Calls [onResult] with transcribed text or null.
-     * Calls [onError] on failure. Must be called on the main thread.
+     * Start continuous listening. Results accumulate until [stopAndFinalize] is called.
+     * Partial results are delivered via [onPartial] for live preview.
      */
     fun startListening(
         onResult: ResultCallback,
         onError: ErrorCallback,
-        onListeningStarted: (() -> Unit)? = null
+        onListeningStarted: (() -> Unit)? = null,
+        onPartial: PartialCallback? = null
     ) {
         if (isListening) {
             Log.w(TAG, "Already listening, ignoring startListening()")
             return
         }
 
+        userStopped = false
+        accumulatedText.clear()
+        currentOnResult = onResult
+        currentOnError = onError
+        currentOnPartial = onPartial
+
+        startRecognizer(onListeningStarted)
+    }
+
+    private fun startRecognizer(onListeningStarted: (() -> Unit)? = null) {
+        destroyRecognizer()
+
         try {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create SpeechRecognizer", e)
-            onError.onError("Speech recognition not available")
+            currentOnError?.onError("Speech recognition not available")
             return
         }
 
@@ -72,22 +104,34 @@ class GoogleSttClient(private val context: Context) {
                 Log.d(TAG, "Speech started")
             }
 
-            override fun onRmsChanged(rmsdB: Float) {
-                // Could use for visual feedback
-            }
-
+            override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
 
             override fun onEndOfSpeech() {
-                Log.d(TAG, "Speech ended")
-                isListening = false
+                Log.d(TAG, "Speech ended (will auto-restart if user hasn't stopped)")
             }
 
             override fun onError(error: Int) {
                 isListening = false
                 val msg = errorCodeToString(error)
-                Log.e(TAG, "Recognition error: $msg (code=$error)")
-                onError.onError(msg)
+                Log.d(TAG, "Recognition cycle ended: $msg (code=$error)")
+
+                if (userStopped) {
+                    // User already stopped — deliver accumulated results
+                    finalizeResults()
+                    return
+                }
+
+                // On silence timeout or no match, auto-restart
+                if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
+                    error == SpeechRecognizer.ERROR_NO_MATCH) {
+                    Log.d(TAG, "Auto-restarting after silence")
+                    startRecognizer()
+                    return
+                }
+
+                // Real errors — report to caller
+                currentOnError?.onError(msg)
                 destroyRecognizer()
             }
 
@@ -95,13 +139,34 @@ class GoogleSttClient(private val context: Context) {
                 isListening = false
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = matches?.firstOrNull()
-                Log.d(TAG, "Result: ${text?.take(50) ?: "(empty)"}")
-                onResult.onResult(text)
-                destroyRecognizer()
+                if (!text.isNullOrBlank()) {
+                    if (accumulatedText.isNotEmpty()) accumulatedText.append(" ")
+                    accumulatedText.append(text.trim())
+                    Log.d(TAG, "Accumulated: ${accumulatedText.length} chars")
+                }
+
+                if (userStopped) {
+                    // User already stopped — deliver accumulated results
+                    finalizeResults()
+                } else {
+                    // Auto-restart for continuous recording
+                    Log.d(TAG, "Auto-restarting for continuous recording")
+                    startRecognizer()
+                }
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
-                // Could show partial transcription for live feedback
+                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                val partial = matches?.firstOrNull()
+                if (!partial.isNullOrBlank()) {
+                    // Show accumulated + current partial
+                    val full = if (accumulatedText.isNotEmpty()) {
+                        "${accumulatedText} $partial"
+                    } else {
+                        partial
+                    }
+                    currentOnPartial?.onPartial(full)
+                }
             }
 
             override fun onEvent(eventType: Int, params: Bundle?) {}
@@ -111,31 +176,62 @@ class GoogleSttClient(private val context: Context) {
             speechRecognizer?.startListening(intent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start listening", e)
-            onError.onError("Failed to start speech recognition")
+            currentOnError?.onError("Failed to start speech recognition")
             destroyRecognizer()
         }
     }
 
-    /** Stop listening and cancel any in-progress recognition. */
-    fun stopListening() {
-        isListening = false
-        try {
-            speechRecognizer?.stopListening()
-        } catch (_: Exception) { }
+    /**
+     * User-initiated stop. Stops the recognizer and delivers all accumulated text.
+     * If the recognizer is between sessions (auto-restart gap), delivers immediately.
+     */
+    fun stopAndFinalize() {
+        userStopped = true
+        if (isListening) {
+            // Recognizer is active — stopListening() will trigger onResults/onError
+            try {
+                speechRecognizer?.stopListening()
+            } catch (_: Exception) { }
+        } else {
+            // Recognizer is between sessions — deliver now
+            finalizeResults()
+        }
     }
 
-    /** Cancel and release resources. */
+    private fun finalizeResults() {
+        val result = accumulatedText.toString().trim().ifEmpty { null }
+        Log.d(TAG, "Final result: ${result?.take(50) ?: "(empty)"}")
+        currentOnResult?.onResult(result)
+        accumulatedText.clear()
+        currentOnResult = null
+        currentOnError = null
+        currentOnPartial = null
+        destroyRecognizer()
+    }
+
+    /** Stop listening — legacy method, calls stopAndFinalize. */
+    fun stopListening() {
+        stopAndFinalize()
+    }
+
+    /** Cancel and release resources without delivering results. */
     fun cancel() {
+        userStopped = true
         isListening = false
+        accumulatedText.clear()
+        currentOnResult = null
+        currentOnError = null
+        currentOnPartial = null
         try {
             speechRecognizer?.cancel()
         } catch (_: Exception) { }
         destroyRecognizer()
     }
 
-    fun isCurrentlyListening(): Boolean = isListening
+    fun isCurrentlyListening(): Boolean = isListening || (!userStopped && accumulatedText.isNotEmpty())
 
     private fun destroyRecognizer() {
+        isListening = false
         try {
             speechRecognizer?.destroy()
         } catch (_: Exception) { }

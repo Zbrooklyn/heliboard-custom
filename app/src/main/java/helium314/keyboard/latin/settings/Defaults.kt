@@ -182,4 +182,6 @@ object Defaults {
     const val PREF_OPENAI_API_KEY = ""
     const val PREF_STT_MODE = "local"  // "local", "cloud", or "google"
     const val PREF_AI_ACTIVE_MODEL = "ggml-tiny.en-q5_1.bin"
+    const val PREF_VOICE_HAPTIC = "medium"  // "off", "light", "medium", "strong"
+    const val PREF_DEFAULT_REWRITE_STYLE = "all"  // "all", "clean", "professional", "casual", "concise", "emojify"
 }

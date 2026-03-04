@@ -60,14 +60,17 @@ private const val CUSTOM_TOLERANCE = 0.01f
 @Composable
 fun KeyboardHeightPreference(setting: Setting) {
     var showDialog by remember { mutableStateOf(false) }
+    val prefs = LocalContext.current.prefs()
+    val keys = List(2) { createPrefKeyForBooleanSettings(Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX, it, 1) }
+    val currentPct = (100 * prefs.getFloat(keys[0], Defaults.PREF_KEYBOARD_HEIGHT_SCALE[0])).toInt()
     Preference(
         name = setting.title,
+        description = "$currentPct%",
         onClick = { showDialog = true },
     )
     if (showDialog) {
         KeyboardHeightDialog(
             onDismissRequest = { showDialog = false },
-            onDone = { KeyboardSwitcher.getInstance().setThemeNeedsReload() },
         )
     }
 }
@@ -75,7 +78,6 @@ fun KeyboardHeightPreference(setting: Setting) {
 @Composable
 private fun KeyboardHeightDialog(
     onDismissRequest: () -> Unit,
-    onDone: () -> Unit,
 ) {
     val prefs = LocalContext.current.prefs()
     val baseKey = Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX
@@ -86,25 +88,55 @@ private fun KeyboardHeightDialog(
     val keys = List(2) { createPrefKeyForBooleanSettings(baseKey, it, 1) }
     val variants = listOf("", stringResource(R.string.landscape))
 
-    var checked by remember { mutableStateOf(listOf(true, true)) }
-    val sliderPositions = remember {
-        Array(2) { mutableFloatStateOf(prefs.getFloat(keys[it], defaults[it])) }
+    // Save original values so we can restore on cancel
+    val originalValues = remember {
+        Array(2) { prefs.getFloat(keys[it], defaults[it]) }
     }
 
-    val done = {
+    var checked by remember { mutableStateOf(listOf(true, true)) }
+    val sliderPositions = remember {
+        Array(2) { mutableFloatStateOf(originalValues[it]) }
+    }
+
+    // Write pref and trigger live reload as user drags
+    fun applyScale(index: Int, value: Float) {
+        if (value == defaults[index])
+            prefs.edit { remove(keys[index]) }
+        else
+            prefs.edit { putFloat(keys[index], value) }
+        KeyboardSwitcher.getInstance().setThemeNeedsReload()
+    }
+
+    fun onSliderChanged(index: Int, value: Float) {
+        sliderPositions[index].floatValue = value
+        applyScale(index, value)
+    }
+
+    fun onPresetSelected(index: Int, scale: Float) {
+        sliderPositions[index].floatValue = scale
+        applyScale(index, scale)
+    }
+
+    fun restoreOriginal() {
         for (i in 0..1) {
-            val value = sliderPositions[i].floatValue
-            if (value == defaults[i])
+            if (originalValues[i] == defaults[i])
                 prefs.edit { remove(keys[i]) }
             else
-                prefs.edit { putFloat(keys[i], value) }
+                prefs.edit { putFloat(keys[i], originalValues[i]) }
         }
-        onDone()
+        KeyboardSwitcher.getInstance().setThemeNeedsReload()
     }
 
     ThreeButtonAlertDialog(
-        onDismissRequest = onDismissRequest,
-        onConfirmed = { done() },
+        onDismissRequest = {
+            // Cancel — restore original values
+            restoreOriginal()
+            onDismissRequest()
+        },
+        onConfirmed = {
+            // Confirm — values are already written live, just close
+            onDismissRequest()
+        },
         title = { Text(stringResource(R.string.prefs_keyboard_height_scale)) },
         content = {
             CompositionLocalProvider(
@@ -145,7 +177,7 @@ private fun KeyboardHeightDialog(
                                             val isSelected = kotlin.math.abs(currentValue - preset.scale) < CUSTOM_TOLERANCE
                                             FilterChip(
                                                 selected = isSelected,
-                                                onClick = { sliderPositions[i].floatValue = preset.scale },
+                                                onClick = { onPresetSelected(i, preset.scale) },
                                                 label = {
                                                     Text(stringResource(preset.labelResId))
                                                 },
@@ -155,10 +187,10 @@ private fun KeyboardHeightDialog(
 
                                     Spacer(Modifier.height(8.dp))
 
-                                    // Fine-tune slider
+                                    // Fine-tune slider — writes pref live as user drags
                                     Slider(
                                         value = sliderPositions[i].floatValue,
-                                        onValueChange = { sliderPositions[i].floatValue = it },
+                                        onValueChange = { onSliderChanged(i, it) },
                                         valueRange = 0.3f..1.5f,
                                     )
 
@@ -174,7 +206,9 @@ private fun KeyboardHeightDialog(
                                         }?.let { stringResource(it.labelResId) }
                                             ?: stringResource(R.string.height_preset_custom)
                                         Text("$pct% ($label)")
-                                        TextButton({ sliderPositions[i].floatValue = defaults[i] }) {
+                                        TextButton({
+                                            onSliderChanged(i, defaults[i])
+                                        }) {
                                             Text(stringResource(R.string.button_default))
                                         }
                                     }

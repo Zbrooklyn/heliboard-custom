@@ -80,6 +80,43 @@
     <string name="voice_ai_test_api_key_testing">Testing\u2026</string>
     <string name="voice_ai_test_api_key_valid">API key is valid</string>
     <string name="voice_ai_share">Share</string>
+    <string name="voice_ai_haptic">Haptic feedback</string>
+    <string name="voice_ai_haptic_summary">Vibration strength for voice state changes</string>
+    <string name="voice_ai_haptic_off">Off</string>
+    <string name="voice_ai_haptic_light">Light</string>
+    <string name="voice_ai_haptic_medium">Medium</string>
+    <string name="voice_ai_haptic_strong">Strong</string>
+    <string name="voice_ai_default_style">Default rewrite style</string>
+    <string name="voice_ai_default_style_summary">Quick rewrite with one tap (long-press for all styles)</string>
+    <string name="voice_ai_style_all">Show all styles</string>
+    <string name="voice_ai_style_clean">Clean</string>
+    <string name="voice_ai_style_professional">Professional</string>
+    <string name="voice_ai_style_casual">Casual</string>
+    <string name="voice_ai_style_concise">Concise</string>
+    <string name="voice_ai_style_emojify">Emojify</string>
+    <string name="voice_ai_undo_transcription">Undo</string>
+    <string name="voice_ai_category_behavior">Behavior</string>
+    <!-- Voice mode view strings -->
+    <string name="voice_tap_mic">Tap mic to speak</string>
+    <string name="voice_listening">Listening\u2026</string>
+    <string name="voice_transcribing">Transcribing\u2026</string>
+    <string name="voice_error_tap_retry">Error \u2014 tap to retry</string>
+    <string name="voice_input_desc">Voice input</string>
+    <string name="voice_back_to_keyboard">\u2190 Keyboard</string>
+    <string name="voice_downloading_model">Downloading model: %d%%</string>
+    <string name="voice_no_speech_detected">No speech detected</string>
+    <string name="voice_input_error">Voice input error</string>
+    <string name="voice_listening_timer">\uD83C\uDFA4  Listening\u2026 %1$ds  [%2$s]  (tap to stop)</string>
+    <string name="voice_transcribing_icon">\u23F3  Transcribing\u2026</string>
+    <string name="voice_recording_desc">Recording. Double tap to stop.</string>
+    <string name="voice_transcribing_desc">Transcribing speech. Please wait.</string>
+    <string name="voice_idle_desc">Tap to start voice input.</string>
+    <string name="voice_error_desc">Voice input error. Tap to retry.</string>
+    <string name="voice_back_desc">Return to keyboard</string>
+    <string name="voice_incognito_indicator">\uD83D\uDD12 Incognito</string>
+    <string name="voice_network_offline">\uD83D\uDD12 Offline</string>
+    <string name="voice_network_openai">\uD83C\uDF10 Uses network (OpenAI)</string>
+    <string name="voice_network_google">\uD83C\uDF10 Uses network (Google)</string>
     <string name="reset_layout_title">Reset layout &amp; preferences</string>
     <string name="reset_layout_description">Reset keyboard appearance, toolbar order, and typing preferences to defaults. API keys, voice models, and AI settings are preserved.</string>
     <string name="reset_layout_confirm">Reset to defaults? API keys and voice models will be kept.</string>
@@ -426,6 +463,9 @@
     <string name="prefs_keyboard_height_scale">Keyboard height scale</string>
     <!-- Accessibility: drag handle to resize keyboard -->
     <string name="resize_keyboard" tools:keep="@string/resize_keyboard">Drag to resize keyboard</string>
+    <!-- Resize mode overlay buttons -->
+    <string name="resize_keyboard_reset">Reset</string>
+    <string name="resize_keyboard_done">Done</string>
     <!-- Keyboard height preset labels -->
     <string name="height_preset_compact">Compact</string>
     <string name="height_preset_normal">Normal</string>

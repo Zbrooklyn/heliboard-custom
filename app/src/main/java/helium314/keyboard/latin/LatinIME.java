@@ -155,11 +155,16 @@ public class LatinIME extends InputMethodService implements
         @Override public void run() {
             if (mVoiceInputManager == null) return;
             long elapsed = (System.currentTimeMillis() - mRecordingStartTime) / 1000;
-            showVoiceStatusTappable("\uD83C\uDFA4  Listening... " + elapsed + "s  (tap to stop)",
+            String provider = mVoiceInputManager.getSttModeLabel(mVoiceInputManager.getSttMode());
+            String status = getString(R.string.voice_listening_timer, (int) elapsed, provider);
+            showVoiceStatusTappable(status,
                 () -> { if (mVoiceInputManager != null) mVoiceInputManager.toggleRecording(); });
             mHandler.postDelayed(this, 1000);
         }
     };
+
+    // Voice transcription undo state
+    private String mLastTranscribedText;
 
     // Magic Rewrite state
     private String mOriginalRewriteText;
@@ -1438,7 +1443,7 @@ public class LatinIME extends InputMethodService implements
             return;
         }
         if (KeyCode.REWRITE == event.getKeyCode()) {
-            handleRewrite();
+            showRewriteStyleMenu();
             return;
         }
         if (KeyCode.TOGGLE_ACTIONS_OVERFLOW == event.getKeyCode()) {
@@ -1450,7 +1455,13 @@ public class LatinIME extends InputMethodService implements
             return;
         }
         if (KeyCode.TOGGLE_RESIZE_KEYBOARD == event.getKeyCode()) {
+            boolean wasActive = mKeyboardSwitcher.isResizeModeActive();
             mKeyboardSwitcher.toggleResizeMode();
+            if (!wasActive) {
+                showVoiceStatus("\u2195 Drag handle to resize \u2022 Tap resize again when done");
+            } else {
+                clearVoiceStatus();
+            }
             return;
         }
         final InputTransaction completeInputTransaction =
@@ -1479,16 +1490,20 @@ public class LatinIME extends InputMethodService implements
                             processed = processed + ".";
                         }
                     }
-                    mInputLogic.mConnection.commitText(processed + " ", 1);
+                    final String committed = processed + " ";
+                    mInputLogic.mConnection.commitText(committed, 1);
+                    // Store for undo and show undo chip
+                    mLastTranscribedText = committed;
+                    showVoiceUndoChip(committed);
                 } else {
                     ActivityLog.INSTANCE.log("Voice", "No speech detected");
-                    Toast.makeText(this, "No speech detected", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.voice_no_speech_detected), Toast.LENGTH_SHORT).show();
                 }
             },
             state -> {  // onStateChange
                 ActivityLog.INSTANCE.log("Voice", "State: " + state.name());
-                // Haptic feedback on state changes
-                AudioAndHapticFeedbackManager.getInstance().vibrate(30);
+                // Haptic feedback on state changes (respects user preference)
+                performVoiceHaptic();
                 // Update VoiceInputModeView if visible
                 if (mKeyboardSwitcher.isShowingVoiceInputMode()) {
                     VoiceInputModeView voiceView = mKeyboardSwitcher.getVoiceInputModeView();
@@ -1503,6 +1518,14 @@ public class LatinIME extends InputMethodService implements
                         VoiceInputModeView vv = mKeyboardSwitcher.getVoiceInputModeView();
                         if (vv != null) {
                             vv.updateState(state);
+                            // Show active STT provider as grayed subtitle + network indicator
+                            String sttMode = mVoiceInputManager.getSttMode();
+                            vv.updateProvider(mVoiceInputManager.getSttModeLabel(sttMode));
+                            vv.updateNetworkIndicator(sttMode);
+                            // Show incognito indicator if in incognito mode
+                            boolean incognito = mSettings.getCurrent() != null
+                                && mSettings.getCurrent().mIncognitoModeEnabled;
+                            vv.setIncognitoVisible(incognito);
                             vv.setOnMicClickListener(() -> {
                                 if (mVoiceInputManager != null) mVoiceInputManager.toggleRecording();
                                 return kotlin.Unit.INSTANCE;
@@ -1518,12 +1541,12 @@ public class LatinIME extends InputMethodService implements
                         break;
                     case TRANSCRIBING:
                         stopRecordingTimer();
-                        showVoiceStatus("\u23F3  Transcribing...");
+                        showVoiceStatus(getString(R.string.voice_transcribing_icon));
                         break;
                     case ERROR:
                         stopRecordingTimer();
                         clearVoiceStatus();
-                        Toast.makeText(this, "Voice input error", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, getString(R.string.voice_input_error), Toast.LENGTH_SHORT).show();
                         // Exit voice mode after brief delay so user sees error
                         mHandler.postDelayed(() -> mKeyboardSwitcher.exitVoiceInputMode(), 1500);
                         break;
@@ -1533,6 +1556,12 @@ public class LatinIME extends InputMethodService implements
                         // Exit voice mode when done
                         mKeyboardSwitcher.exitVoiceInputMode();
                         break;
+                }
+            },
+            partialText -> {  // onPartialResult — Google STT live preview
+                if (mKeyboardSwitcher.isShowingVoiceInputMode()) {
+                    VoiceInputModeView voiceView = mKeyboardSwitcher.getVoiceInputModeView();
+                    if (voiceView != null) voiceView.updatePartialPreview(partialText);
                 }
             }
         );
@@ -1576,6 +1605,83 @@ public class LatinIME extends InputMethodService implements
     private void clearVoiceStatus() {
         if (mSuggestionStripView == null) return;
         setNeutralSuggestionStrip();
+    }
+
+    /** Show an undo chip in the suggestion strip after voice transcription. Auto-dismisses after 5s. */
+    private void showVoiceUndoChip(String committedText) {
+        if (mSuggestionStripView == null) return;
+
+        int chipText = Color.WHITE;
+        int stripBg = Color.parseColor("#1A1A1A");
+        try {
+            helium314.keyboard.latin.common.Colors colors = Settings.getValues().mColors;
+            chipText = colors.get(ColorType.KEY_TEXT);
+            stripBg = colors.get(ColorType.STRIP_BACKGROUND);
+        } catch (Exception ignored) {}
+
+        android.widget.LinearLayout container = new android.widget.LinearLayout(mDisplayContext != null ? mDisplayContext : this);
+        container.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        container.setGravity(android.view.Gravity.CENTER);
+        container.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+
+        // Preview of transcribed text
+        android.widget.TextView preview = new android.widget.TextView(mDisplayContext != null ? mDisplayContext : this);
+        String previewText = committedText.trim();
+        if (previewText.length() > 30) previewText = previewText.substring(0, 30) + "\u2026";
+        preview.setText(previewText);
+        preview.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
+        preview.setTextColor(chipText);
+        preview.setAlpha(0.7f);
+        preview.setSingleLine(true);
+        android.widget.LinearLayout.LayoutParams previewLp = new android.widget.LinearLayout.LayoutParams(
+            0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        previewLp.setMargins(dpToPx(8), 0, dpToPx(4), 0);
+        preview.setLayoutParams(previewLp);
+        container.addView(preview);
+
+        // Undo chip
+        android.widget.TextView undoChip = createRewriteChip("\u21A9 Undo", null, chipText, stripBg);
+        undoChip.setOnClickListener(v -> {
+            undoVoiceTranscription();
+        });
+        container.addView(undoChip);
+
+        mSuggestionStripView.setExternalSuggestionView(container, true);
+
+        // Auto-dismiss after 5 seconds
+        mHandler.postDelayed(() -> {
+            if (mLastTranscribedText != null && mLastTranscribedText.equals(committedText)) {
+                clearVoiceStatus();
+                mLastTranscribedText = null;
+            }
+        }, 5000);
+    }
+
+    private void undoVoiceTranscription() {
+        if (mLastTranscribedText == null) return;
+        android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+        // Delete the committed text by removing characters before cursor
+        ic.deleteSurroundingText(mLastTranscribedText.length(), 0);
+        mLastTranscribedText = null;
+        clearVoiceStatus();
+        Toast.makeText(this, "Transcription undone", Toast.LENGTH_SHORT).show();
+    }
+
+    /** Vibrate according to user's voice haptic preference. */
+    private void performVoiceHaptic() {
+        android.content.SharedPreferences prefs = KtxKt.prefs(this);
+        String level = prefs.getString(Settings.PREF_VOICE_HAPTIC, "medium");
+        if ("off".equals(level)) return;
+        int ms;
+        switch (level) {
+            case "light": ms = 15; break;
+            case "strong": ms = 60; break;
+            default: ms = 30; break; // medium
+        }
+        AudioAndHapticFeedbackManager.getInstance().vibrate(ms);
     }
 
     private void handleVoiceInput() {
@@ -1681,7 +1787,77 @@ public class LatinIME extends InputMethodService implements
 
     // --- Magic Rewrite (AI text transformation) ---
 
-    private void handleRewrite() {
+    /** Show the rewrite style menu in the suggestion strip — user picks a style before API call. */
+    private void showRewriteStyleMenu() {
+        if (mSuggestionStripView == null) return;
+
+        // First check there's text to rewrite
+        android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+        android.view.inputmethod.ExtractedTextRequest req = new android.view.inputmethod.ExtractedTextRequest();
+        req.hintMaxChars = 10000;
+        android.view.inputmethod.ExtractedText extractedText = ic.getExtractedText(req, 0);
+        if (extractedText == null || extractedText.text == null || extractedText.text.toString().trim().isEmpty()) {
+            Toast.makeText(this, "Type some text first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        int chipText = Color.WHITE;
+        int stripBg = Color.parseColor("#1A1A1A");
+        try {
+            helium314.keyboard.latin.common.Colors colors = Settings.getValues().mColors;
+            chipText = colors.get(ColorType.KEY_TEXT);
+            stripBg = colors.get(ColorType.STRIP_BACKGROUND);
+        } catch (Exception ignored) {}
+
+        android.widget.HorizontalScrollView scrollView = new android.widget.HorizontalScrollView(mDisplayContext != null ? mDisplayContext : this);
+        scrollView.setHorizontalScrollBarEnabled(false);
+        scrollView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+
+        android.widget.LinearLayout container = new android.widget.LinearLayout(mDisplayContext != null ? mDisplayContext : this);
+        container.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        container.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        container.setPadding(dpToPx(4), 0, dpToPx(4), 0);
+
+        // Style options
+        String[][] styles = {
+            {"\u2728 Clean", "clean"},
+            {"\uD83D\uDCBC Professional", "professional"},
+            {"\uD83D\uDCAC Casual", "casual"},
+            {"\uD83D\uDCDD Concise", "concise"},
+            {"\uD83D\uDE04 Emojify", "emojify"},
+            {"\u2726 All Styles", "all"},
+        };
+
+        for (String[] style : styles) {
+            android.widget.TextView chip = createRewriteChip(style[0], null, chipText, stripBg);
+            final String styleName = style[1];
+            chip.setOnClickListener(v -> {
+                if ("all".equals(styleName)) {
+                    handleRewrite(true);
+                } else {
+                    handleRewrite(false, styleName);
+                }
+            });
+            container.addView(chip);
+        }
+
+        // Cancel chip
+        android.widget.TextView cancelChip = createRewriteChip("\u2715 Cancel", null, chipText, stripBg);
+        cancelChip.setOnClickListener(v -> clearVoiceStatus());
+        container.addView(cancelChip);
+
+        scrollView.addView(container);
+        mSuggestionStripView.setExternalSuggestionView(scrollView, true);
+    }
+
+    private void handleRewrite(boolean allStyles) {
+        handleRewrite(allStyles, null);
+    }
+
+    private void handleRewrite(boolean forceAllStyles, String singleStyle) {
         if (mSuggestionStripView == null) return;
 
         // Read the current text from the input field
@@ -1724,23 +1900,40 @@ public class LatinIME extends InputMethodService implements
         // Store original text for undo
         mOriginalRewriteText = text;
 
+        // Determine style: specific single style, or all styles
+        boolean useAllStyles = forceAllStyles || singleStyle == null || "all".equals(singleStyle);
+        String style = singleStyle != null ? singleStyle : "all";
+
         // Show loading status
-        ActivityLog.INSTANCE.log("Rewrite", "Starting with " + client.getName() + " (" + text.length() + " chars)");
+        String styleSuffix = useAllStyles ? "" : " (" + style + ")";
+        ActivityLog.INSTANCE.log("Rewrite", "Starting with " + client.getName() + styleSuffix + " (" + text.length() + " chars)");
         ActivityLog.INSTANCE.trackApiCall("openai".equals(provider) ? "rewrite_openai" : "rewrite_gemini");
-        showVoiceStatus("\u2728 Rewriting with " + client.getName() + "...");
+        showVoiceStatus("\u2728 Rewriting with " + client.getName() + styleSuffix + "...");
 
         // Call AI on background thread
         final String finalApiKey = apiKey;
         final String finalText = text;
         final RewriteProvider finalClient = client;
+        final boolean allStylesFinal = useAllStyles;
+        final String finalStyle = style;
         new Thread(() -> {
             try {
-                RewriteVariants variants = RewriteHelper.rewriteAllBlocking(finalClient, finalApiKey, finalText);
-                ActivityLog.INSTANCE.log("Rewrite", "Success — " + variants.toList().size() + " variants");
-                mHandler.post(() -> {
-                    mRewriteVariants = variants;
-                    showRewriteVariants(variants);
-                });
+                if (allStylesFinal) {
+                    RewriteVariants variants = RewriteHelper.rewriteAllBlocking(finalClient, finalApiKey, finalText);
+                    ActivityLog.INSTANCE.log("Rewrite", "Success — " + variants.toList().size() + " variants");
+                    mHandler.post(() -> {
+                        mRewriteVariants = variants;
+                        showRewriteVariants(variants);
+                    });
+                } else {
+                    // Quick single-style rewrite
+                    String result = RewriteHelper.rewriteSingleBlocking(finalClient, finalApiKey, finalText, finalStyle);
+                    ActivityLog.INSTANCE.log("Rewrite", "Single style '" + finalStyle + "' success");
+                    mHandler.post(() -> {
+                        applyRewrite(result);
+                        showQuickRewriteUndoChip(finalStyle);
+                    });
+                }
             } catch (Exception e) {
                 ActivityLog.INSTANCE.log("Rewrite", "Failed: " + e.getMessage());
                 android.util.Log.e(TAG, "Rewrite failed", e);
@@ -1841,6 +2034,56 @@ public class LatinIME extends InputMethodService implements
         // Select all current text and replace
         ic.performContextMenuAction(android.R.id.selectAll);
         ic.commitText(newText, 1);
+    }
+
+    /** After quick single-style rewrite, show a brief undo chip with the applied style name. */
+    private void showQuickRewriteUndoChip(String styleName) {
+        if (mSuggestionStripView == null) return;
+
+        int chipText = Color.WHITE;
+        int stripBg = Color.parseColor("#1A1A1A");
+        try {
+            helium314.keyboard.latin.common.Colors colors = Settings.getValues().mColors;
+            chipText = colors.get(ColorType.KEY_TEXT);
+            stripBg = colors.get(ColorType.STRIP_BACKGROUND);
+        } catch (Exception ignored) {}
+
+        android.widget.LinearLayout container = new android.widget.LinearLayout(mDisplayContext != null ? mDisplayContext : this);
+        container.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        container.setGravity(android.view.Gravity.CENTER);
+        container.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+
+        // Applied style label
+        android.widget.TextView label = new android.widget.TextView(mDisplayContext != null ? mDisplayContext : this);
+        label.setText("\u2728 Applied: " + styleName);
+        label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
+        label.setTextColor(chipText);
+        label.setAlpha(0.7f);
+        label.setSingleLine(true);
+        android.widget.LinearLayout.LayoutParams labelLp = new android.widget.LinearLayout.LayoutParams(
+            0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        labelLp.setMargins(dpToPx(8), 0, dpToPx(4), 0);
+        label.setLayoutParams(labelLp);
+        container.addView(label);
+
+        // Show All chip — tap to show all 5 variants
+        android.widget.TextView allChip = createRewriteChip("\u2726 All Styles", null, chipText, stripBg);
+        allChip.setOnClickListener(v -> handleRewrite(true));
+        container.addView(allChip);
+
+        // Undo chip
+        android.widget.TextView undoChip = createRewriteChip("\u21A9 Undo", null, chipText, stripBg);
+        undoChip.setOnClickListener(v -> undoRewrite());
+        container.addView(undoChip);
+
+        mSuggestionStripView.setExternalSuggestionView(container, true);
+
+        // Auto-dismiss after 8 seconds
+        mHandler.postDelayed(() -> {
+            clearVoiceStatus();
+        }, 8000);
     }
 
     private void undoRewrite() {

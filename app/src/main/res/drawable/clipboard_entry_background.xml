@@ -5,18 +5,18 @@
     with a subtle border for depth on AMOLED dark backgrounds.
 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Pressed state: slightly brighter border for feedback -->
+    <!-- Pressed state: brighter border for feedback -->
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
             <corners android:radius="14dp" />
-            <stroke android:width="1dp" android:color="#1AFFFFFF" />
+            <stroke android:width="1dp" android:color="#55FFFFFF" />
         </shape>
     </item>
-    <!-- Default state: subtle border -->
+    <!-- Default state: visible border on dark backgrounds -->
     <item>
         <shape android:shape="rectangle">
             <corners android:radius="14dp" />
-            <stroke android:width="1dp" android:color="#12FFFFFF" />
+            <stroke android:width="1dp" android:color="#40FFFFFF" />
         </shape>
     </item>
 </selector>

@@ -134,7 +134,7 @@ val defaultPinnedToolbarPref = entries.filterNot { it == CLOSE_HISTORY }.joinToS
 
 val defaultClipboardToolbarPref by lazy {
     // Samsung-style edit row: navigation + clipboard operations
-    val default = listOf(RIGHT, LEFT, SELECT_ALL, COPY, PASTE, DOWN, UP, CLOSE_HISTORY)
+    val default = listOf(LEFT, RIGHT, SELECT_ALL, COPY, PASTE, DOWN, UP, CLOSE_HISTORY)
     val others = entries.filterNot { it in default }
     default.joinToString(Separators.ENTRY) { it.name + Separators.KV + true } + Separators.ENTRY +
             others.joinToString(Separators.ENTRY) { it.name + Separators.KV + false }
@@ -146,10 +146,12 @@ fun upgradeToolbarPrefs(prefs: SharedPreferences) {
     upgradeToolbarPref(prefs, Settings.PREF_PINNED_TOOLBAR_KEYS, defaultPinnedToolbarPref)
     upgradeToolbarPref(prefs, Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, defaultClipboardToolbarPref)
     // One-time migration: force WhisperClick clipboard toolbar order
-    if (!prefs.getBoolean("whisperclick_clipboard_toolbar_migrated", false)) {
+    // v2: fixed Left/Right/SelectAll order
+    // v3: ensure SELECT_ALL (not SELECT_WORD) is in position 3
+    if (!prefs.getBoolean("whisperclick_clipboard_toolbar_migrated_v3", false)) {
         prefs.edit {
             putString(Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, defaultClipboardToolbarPref)
-            putBoolean("whisperclick_clipboard_toolbar_migrated", true)
+            putBoolean("whisperclick_clipboard_toolbar_migrated_v3", true)
         }
     }
 }
