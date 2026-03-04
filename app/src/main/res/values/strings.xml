@@ -56,6 +56,7 @@
     <string name="voice_ai_provider_summary">Choose which AI service to use for text rewriting</string>
     <string name="voice_ai_gemini_key">Gemini API key</string>
     <string name="voice_ai_openai_key">OpenAI API key</string>
+    <string name="voice_ai_category_api_keys">API Keys</string>
     <string name="voice_ai_category_voice">Voice Input</string>
     <string name="voice_ai_category_rewrite">AI Rewrite</string>
     <string name="voice_ai_category_models">Voice Models</string>

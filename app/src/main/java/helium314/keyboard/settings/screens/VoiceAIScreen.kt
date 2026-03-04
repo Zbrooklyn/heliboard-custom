@@ -56,17 +56,19 @@ fun VoiceAIScreen(onClickBack: () -> Unit) {
         Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
 
     val items = listOf(
-        // Voice Input section
+        // API Keys — shared by cloud voice and AI rewrite
+        R.string.voice_ai_category_api_keys,
+        Settings.PREF_OPENAI_API_KEY,
+        Settings.PREF_GEMINI_API_KEY,
+        SettingsWithoutKey.TEST_API_KEY,
+        // Voice Input
         R.string.voice_ai_category_voice,
         Settings.PREF_STT_MODE,
         Settings.PREF_AI_ACTIVE_MODEL,
-        // AI Rewrite section
+        // AI Rewrite
         R.string.voice_ai_category_rewrite,
         Settings.PREF_AI_PROVIDER,
-        Settings.PREF_GEMINI_API_KEY,
-        Settings.PREF_OPENAI_API_KEY,
-        SettingsWithoutKey.TEST_API_KEY,
-        // Diagnostics section
+        // Diagnostics
         R.string.voice_ai_category_diagnostics,
         SettingsWithoutKey.VOICE_BENCHMARK,
         SettingsWithoutKey.ACTIVITY_LOG,
