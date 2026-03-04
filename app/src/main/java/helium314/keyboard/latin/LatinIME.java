@@ -589,8 +589,12 @@ public class LatinIME extends InputMethodService implements
         StatsUtils.onCreate(mSettings.getCurrent(), mRichImm);
 
         // Initialize voice input if model is already downloaded
-        if (ModelDownloader.isModelDownloaded(this)) {
-            initVoiceInput();
+        try {
+            if (ModelDownloader.isModelDownloaded(this)) {
+                initVoiceInput();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Voice init skipped: " + e.getMessage());
         }
     }
 
