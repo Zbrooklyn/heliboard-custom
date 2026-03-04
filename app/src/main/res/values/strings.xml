@@ -57,6 +57,10 @@
     <string name="voice_ai_category_models">Voice Models</string>
     <string name="voice_ai_active_model">Active model</string>
     <string name="voice_ai_active_model_summary">Select which whisper model to use for local transcription</string>
+    <string name="voice_ai_category_diagnostics">Diagnostics</string>
+    <string name="voice_ai_benchmark">Run voice benchmark</string>
+    <string name="voice_ai_benchmark_description">Test CPU, model loading, and inference speed</string>
+    <string name="voice_ai_benchmark_running">Running benchmark\u2026</string>
     <!-- Settings screen title for keyboard theme settings -->
     <string name="settings_screen_theme">Theme</string>
     <!-- Settings category title for Preference/Input settings -->

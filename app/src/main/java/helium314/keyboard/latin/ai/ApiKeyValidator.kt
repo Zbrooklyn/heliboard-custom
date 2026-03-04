@@ -31,6 +31,14 @@ object ApiKeyValidator {
         }
     }
 
+    /** Quick local format check — no network call. */
+    fun isValidOpenAIKey(key: String): Boolean =
+        key.isNotBlank() && key.startsWith("sk-") && key.length >= 20
+
+    /** Quick local format check — no network call. */
+    fun isValidGeminiKey(key: String): Boolean =
+        key.isNotBlank() && key.length >= 20
+
     suspend fun validateGemini(apiKey: String): Result = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) return@withContext Result.Invalid("Key is empty")
         val conn = URL("https://generativelanguage.googleapis.com/v1beta/models").openConnection() as HttpURLConnection
