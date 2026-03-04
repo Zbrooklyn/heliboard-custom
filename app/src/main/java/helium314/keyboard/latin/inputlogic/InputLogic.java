@@ -1749,8 +1749,16 @@ public final class InputLogic {
         final SuggestedWords suggestedWords = holder.get(null,
                 Constants.GET_SUGGESTED_WORDS_TIMEOUT);
         if (suggestedWords != null) {
+            // Suppress beginning-of-sentence predictions (e.g. "the") on empty fields —
+            // only show predictions when there is actual preceding text.
+            final CharSequence textBefore = mConnection.getTextBeforeCursor(1, 0);
+            final boolean isBosOnEmpty =
+                    suggestedWords.mInputStyle == SuggestedWords.INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION
+                    && !mWordComposer.isComposingWord()
+                    && (textBefore == null || textBefore.length() == 0);
             // Prefer clipboard suggestions (if available and setting is enabled) over beginning of sentence predictions.
-            if (!(suggestedWords.mInputStyle == SuggestedWords.INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION
+            if (!isBosOnEmpty
+                    && !(suggestedWords.mInputStyle == SuggestedWords.INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION
                     && mLatinIME.tryShowClipboardSuggestion())) {
                 mSuggestionStripViewAccessor.setSuggestions(suggestedWords);
             }

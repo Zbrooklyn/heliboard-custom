@@ -452,9 +452,16 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
 
     private void enterResizeMode() {
         mResizeModeActive = true;
-        // Show overlay and dim keyboard
+        // Hide competing views first
+        if (mFeatureDrawerView != null) mFeatureDrawerView.setVisibility(View.GONE);
+        if (mVoiceInputModeView != null) mVoiceInputModeView.setVisibility(View.GONE);
+        // Dim keyboard and disable all touch input on it
+        if (mKeyboardView != null) {
+            mKeyboardView.setAlpha(0.3f);
+            mKeyboardView.setEnabled(false);
+        }
+        // Show overlay (sits on top, blocks remaining touches via clickable scrim)
         if (mResizeOverlay != null) mResizeOverlay.setVisibility(View.VISIBLE);
-        if (mKeyboardView != null) mKeyboardView.setAlpha(0.4f);
         // Hide old handle (kept for compat but not used)
         if (mResizeHandle != null) mResizeHandle.setVisibility(View.GONE);
     }
@@ -463,7 +470,10 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mResizeModeActive = false;
         // Hide overlay and restore keyboard
         if (mResizeOverlay != null) mResizeOverlay.setVisibility(View.GONE);
-        if (mKeyboardView != null) mKeyboardView.setAlpha(1f);
+        if (mKeyboardView != null) {
+            mKeyboardView.setAlpha(1f);
+            mKeyboardView.setEnabled(true);
+        }
         // Reset visual scale
         if (mMainKeyboardFrame != null) mMainKeyboardFrame.setScaleY(1f);
         if (rebuild) {
