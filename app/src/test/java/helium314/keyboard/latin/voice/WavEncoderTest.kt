@@ -8,10 +8,14 @@ import kotlin.test.assertTrue
 class WavEncoderTest {
 
     @Test
-    fun `empty audio produces valid WAV header`() {
+    fun `empty audio returns empty byte array`() {
         val wav = WavEncoder.encodeWaveBytes(ShortArray(0))
-        // WAV header is 44 bytes
-        assertEquals(44, wav.size)
+        assertEquals(0, wav.size)
+    }
+
+    @Test
+    fun `non-empty audio has valid WAV header`() {
+        val wav = WavEncoder.encodeWaveBytes(ShortArray(100))
         // RIFF header
         assertEquals('R'.code.toByte(), wav[0])
         assertEquals('I'.code.toByte(), wav[1])
