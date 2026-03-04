@@ -80,7 +80,7 @@ class VoiceInputModeView @JvmOverloads constructor(
 
     fun applyTheme(colors: Colors) {
         val density = resources.displayMetrics.density
-        val bgColor = colors.get(ColorType.BACKGROUND)
+        val bgColor = colors.get(ColorType.MAIN_BACKGROUND)
         val textColor = colors.get(ColorType.KEY_TEXT)
         val accentColor = colors.get(ColorType.KEY_BACKGROUND)
 

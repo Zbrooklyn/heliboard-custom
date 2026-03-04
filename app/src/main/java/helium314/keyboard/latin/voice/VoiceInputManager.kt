@@ -13,7 +13,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
 import java.io.File
 
 class VoiceInputManager(
@@ -101,7 +101,7 @@ class VoiceInputManager(
         scope.launch {
             recorder.startRecording { e ->
                 Log.e(TAG, "Recording error", e)
-                withContext(Dispatchers.Main) {
+                scope.launch(Dispatchers.Main) {
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
                 }
@@ -186,11 +186,14 @@ class VoiceInputManager(
     }
 
     fun release() {
-        // Release whisper context synchronously before cancelling scope
-        try {
-            whisperContext?.release()
-            whisperContext = null
-        } catch (_: Exception) { }
+        // Launch release on whisper's own scope, then cancel ours
+        val ctx = whisperContext
+        whisperContext = null
+        if (ctx != null) {
+            try {
+                runBlocking { ctx.release() }
+            } catch (_: Exception) { }
+        }
         scope.cancel()
         recorder.release()
     }
