@@ -16,6 +16,16 @@
         android:id="@+id/strip_container"
         layout="@layout/strip_container" />
 
+    <!-- Drag handle for Samsung-style keyboard height resize.
+         A thin pill-shaped bar users drag up/down to resize the keyboard. -->
+    <View
+        android:id="@+id/keyboard_resize_handle"
+        android:layout_width="match_parent"
+        android:layout_height="12dp"
+        android:layout_gravity="center_horizontal"
+        android:contentDescription="@string/resize_keyboard"
+        android:visibility="gone" />
+
     <!-- To ensure that key preview popup is correctly placed when the current system locale is
          one of RTL locales, layoutDirection="ltr" is needed in the SDK version 17+. -->
     <helium314.keyboard.latin.KeyboardWrapperView

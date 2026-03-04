@@ -23,6 +23,7 @@ import android.view.View
 import android.view.View.OnLongClickListener
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
@@ -129,16 +130,13 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         LinearLayout.LayoutParams.MATCH_PARENT,
         1f // equal weight — distributes toolbar keys evenly across full width
     )
-    // Samsung-style circular layout params — equal weight with margin for circle shape
+    // Samsung-style circular layout params — fixed square size so circles never stretch.
+    // The parent toolbar uses equal-weight wrappers to justify spacing.
+    private val circleSize get() = (resources.getDimension(R.dimen.config_suggestions_strip_height) - 6 * density).toInt()
     private val toolbarCircleLayoutParams get() = LinearLayout.LayoutParams(
-        0,
-        LinearLayout.LayoutParams.MATCH_PARENT,
-        1f
-    ).apply {
-        val hMargin = (2 * density).toInt()
-        val vMargin = (3 * density).toInt()
-        setMargins(hMargin, vMargin, hMargin, vMargin)
-    }
+        circleSize,
+        circleSize
+    )
 
     init {
         val colors = Settings.getValues().mColors
@@ -162,19 +160,19 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val mToolbarMode = if (isGone) ToolbarMode.HIDDEN else Settings.getValues().mToolbarMode
 
         // toolbar keys setup — always populate toolbar (2-row layout: toolbar is always visible on top)
+        // Each button is a fixed-size circle inside a weight=1 wrapper for even spacing.
         val toolbarCircleColor = colors.get(ColorType.KEY_BACKGROUND)
         if (mToolbarMode != ToolbarMode.HIDDEN) {
             for (key in getEnabledToolbarKeys(context.prefs())) {
                 val button = createToolbarKey(context, key)
                 button.layoutParams = toolbarCircleLayoutParams
                 setupKey(button, colors)
-                // Samsung-style circular background behind each toolbar icon
                 val circle = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(toolbarCircleColor)
                 }
                 button.background = circle
-                toolbar.addView(button)
+                toolbar.addView(wrapInCenteredCell(button))
             }
             // "..." overflow button — opens feature drawer
             val overflowButton = ImageButton(context, null, R.attr.suggestionWordStyle)
@@ -192,7 +190,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             overflowButton.setOnClickListener {
                 listener.onCodeInput(KeyCode.TOGGLE_ACTIONS_OVERFLOW, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false)
             }
-            toolbar.addView(overflowButton)
+            toolbar.addView(wrapInCenteredCell(overflowButton))
         }
         // Samsung-style: single row — toolbar visible by default, suggestions swap in when available
         toolbarContainer.visibility = VISIBLE
@@ -596,6 +594,19 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         view.setOnLongClickListener(this)
         colors.setColor(view, ColorType.TOOL_BAR_KEY)
         colors.setBackground(view, ColorType.STRIP_BACKGROUND)
+    }
+
+    /** Wrap a fixed-size circle button in a weight=1 cell that centers it.
+     *  This keeps circles uniform while distributing spacing evenly. */
+    private fun wrapInCenteredCell(button: View): FrameLayout {
+        val cell = FrameLayout(context)
+        cell.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+        val lp = button.layoutParams as? FrameLayout.LayoutParams
+            ?: FrameLayout.LayoutParams(button.layoutParams.width, button.layoutParams.height)
+        lp.gravity = android.view.Gravity.CENTER
+        button.layoutParams = lp
+        cell.addView(button)
+        return cell
     }
 
     companion object {

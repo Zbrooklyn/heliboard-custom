@@ -1449,6 +1449,10 @@ public class LatinIME extends InputMethodService implements
             handleToggleSttMode();
             return;
         }
+        if (KeyCode.TOGGLE_RESIZE_KEYBOARD == event.getKeyCode()) {
+            mKeyboardSwitcher.toggleResizeMode();
+            return;
+        }
         final InputTransaction completeInputTransaction =
                 mInputLogic.onCodeInput(mSettings.getCurrent(), event,
                         mKeyboardSwitcher.getKeyboardShiftMode(),
@@ -1586,16 +1590,15 @@ public class LatinIME extends InputMethodService implements
             initVoiceInput();
         }
 
-        // Cloud mode skips local model requirement
-        if (mVoiceInputManager.needsLocalModel()) {
-            // Check if model is downloaded
+        // Mode-specific prerequisites
+        String sttMode = mVoiceInputManager.getSttMode();
+        if ("local".equals(sttMode)) {
+            // Local mode: need downloaded whisper model
             if (!mVoiceInputManager.isModelLoaded() && mVoiceInputManager.getModelFile() == null) {
                 showVoiceStatus("\u2B07  Downloading voice model (31MB)...");
                 startModelDownload();
                 return;
             }
-
-            // If model file exists but context not loaded yet, load it
             if (!mVoiceInputManager.isModelLoaded()) {
                 java.io.File modelFile = mVoiceInputManager.getModelFile();
                 if (modelFile != null) {
@@ -1604,8 +1607,8 @@ public class LatinIME extends InputMethodService implements
                     return;
                 }
             }
-        } else {
-            // Cloud mode: check API key before proceeding
+        } else if ("cloud".equals(sttMode)) {
+            // Cloud mode: need OpenAI API key
             android.content.SharedPreferences prefs = KtxKt.prefs(this);
             String apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, "");
             if (apiKey == null || apiKey.isEmpty()) {
@@ -1613,14 +1616,10 @@ public class LatinIME extends InputMethodService implements
                 return;
             }
         }
+        // Google mode: no prerequisites — uses device's built-in speech recognition
 
-        ActivityLog.INSTANCE.log("Voice", "Toggle recording");
-        // Track API usage
-        if (mVoiceInputManager.needsLocalModel()) {
-            ActivityLog.INSTANCE.trackApiCall("voice_local");
-        } else {
-            ActivityLog.INSTANCE.trackApiCall("voice_cloud");
-        }
+        ActivityLog.INSTANCE.log("Voice", "Toggle recording (mode=" + sttMode + ")");
+        ActivityLog.INSTANCE.trackApiCall("voice_" + sttMode);
         mVoiceInputManager.toggleRecording();
     }
 
@@ -1663,7 +1662,7 @@ public class LatinIME extends InputMethodService implements
         if (mVoiceInputManager == null) return;
 
         String newMode = mVoiceInputManager.toggleSttMode();
-        String label = "cloud".equals(newMode) ? "Cloud STT" : "Local STT";
+        String label = mVoiceInputManager.getSttModeLabel(newMode);
         // Double haptic burst to signal mode switch
         android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
         if (vibrator != null && vibrator.hasVibrator()) {

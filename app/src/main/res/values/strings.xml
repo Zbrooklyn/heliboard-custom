@@ -48,9 +48,10 @@
     <string name="settings_category_whisperclick">WhisperClick</string>
     <string name="settings_category_classic">Classic Settings</string>
     <string name="voice_ai_stt_mode">Speech-to-text mode</string>
-    <string name="voice_ai_stt_mode_summary">Choose between local (offline) or cloud (OpenAI) transcription</string>
+    <string name="voice_ai_stt_mode_summary">Choose local (offline), cloud (OpenAI), or Google on-device transcription</string>
     <string name="voice_ai_stt_local">Local (offline)</string>
     <string name="voice_ai_stt_cloud">Cloud (OpenAI Whisper)</string>
+    <string name="voice_ai_stt_google">Google (on-device)</string>
     <string name="voice_ai_provider">AI rewrite provider</string>
     <string name="voice_ai_provider_summary">Choose which AI service to use for text rewriting</string>
     <string name="voice_ai_gemini_key">Gemini API key</string>
@@ -422,6 +423,8 @@
     <string name="prefs_narrow_key_gaps">Narrow key gaps</string>
     <!-- Title of the setting for setting keyboard height -->
     <string name="prefs_keyboard_height_scale">Keyboard height scale</string>
+    <!-- Accessibility: drag handle to resize keyboard -->
+    <string name="resize_keyboard" tools:keep="@string/resize_keyboard">Drag to resize keyboard</string>
     <!-- Keyboard height preset labels -->
     <string name="height_preset_compact">Compact</string>
     <string name="height_preset_normal">Normal</string>

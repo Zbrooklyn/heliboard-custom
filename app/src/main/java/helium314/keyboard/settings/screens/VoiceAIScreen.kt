@@ -86,6 +86,7 @@ fun createVoiceAISettings(context: Context) = listOf(
             items = listOf(
                 context.getString(R.string.voice_ai_stt_local) to "local",
                 context.getString(R.string.voice_ai_stt_cloud) to "cloud",
+                context.getString(R.string.voice_ai_stt_google) to "google",
             ),
             default = Defaults.PREF_STT_MODE,
         )

@@ -458,6 +458,13 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
         return prefs.getFloat(SettingsKt.createPrefKeyForBooleanSettings(PREF_KEYBOARD_HEIGHT_SCALE_PREFIX, index, 1), defaultValue);
     }
 
+    public void writeHeightScale(final float scale) {
+        final boolean landscape = mSettingsValues.mDisplayOrientation == Configuration.ORIENTATION_LANDSCAPE;
+        final int index = SettingsKt.findIndexOfDefaultSetting(landscape);
+        final String key = SettingsKt.createPrefKeyForBooleanSettings(PREF_KEYBOARD_HEIGHT_SCALE_PREFIX, index, 1);
+        mPrefs.edit().putFloat(key, scale).apply();
+    }
+
     public static boolean readHasHardwareKeyboard(final Configuration conf) {
         // The standard way of finding out whether we have a hardware keyboard. This code is taken
         // from InputMethodService#onEvaluateInputShown, which canonically determines this.

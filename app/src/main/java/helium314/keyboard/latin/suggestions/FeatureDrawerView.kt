@@ -155,7 +155,7 @@ class FeatureDrawerView @JvmOverloads constructor(
             DrawerItem(ToolbarKey.INCOGNITO, R.string.incognito, KeyCode.TOGGLE_INCOGNITO_MODE),
             DrawerItem(ToolbarKey.AUTOCORRECT, R.string.autocorrect, KeyCode.TOGGLE_AUTOCORRECT),
             DrawerItem(ToolbarKey.SELECT_ALL, R.string.select_all, KeyCode.CLIPBOARD_SELECT_ALL),
-            DrawerItem(ToolbarKey.PASTE, R.string.paste, KeyCode.CLIPBOARD_PASTE),
+            DrawerItem(ToolbarKey.ONE_HANDED, R.string.resize_keyboard, KeyCode.TOGGLE_RESIZE_KEYBOARD),
         )
     }
 }

@@ -16,6 +16,7 @@ import android.os.Build;
 import android.view.ContextThemeWrapper;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.AnimationUtils;
 import android.view.inputmethod.EditorInfo;
@@ -72,6 +73,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private ClipboardHistoryView mClipboardHistoryView;
     private FeatureDrawerView mFeatureDrawerView;
     private VoiceInputModeView mVoiceInputModeView;
+    private View mResizeHandle;
     private TextView mFakeToastView;
     private LatinIME mLatinIME;
     private RichInputMethodManager mRichImm;
@@ -430,6 +432,62 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
 
     public boolean isShowingFeatureDrawer() {
         return mFeatureDrawerView != null && mFeatureDrawerView.isShown();
+    }
+
+    /** Show/hide the drag-to-resize handle above the keyboard. */
+    public void toggleResizeMode() {
+        if (mResizeHandle == null) return;
+        final boolean show = mResizeHandle.getVisibility() != View.VISIBLE;
+        mResizeHandle.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    public boolean isResizeModeActive() {
+        return mResizeHandle != null && mResizeHandle.getVisibility() == View.VISIBLE;
+    }
+
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private void setupResizeHandle(final Context context) {
+        if (mResizeHandle == null) return;
+        final float density = context.getResources().getDisplayMetrics().density;
+
+        // Draw a small pill indicator in the center of the handle
+        android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+        pill.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        pill.setCornerRadius(3 * density);
+        pill.setColor(0x40808080); // semi-transparent gray
+        pill.setSize((int)(40 * density), (int)(4 * density));
+        android.graphics.drawable.InsetDrawable inset = new android.graphics.drawable.InsetDrawable(
+            pill, 0, (int)(4 * density), 0, (int)(4 * density));
+        mResizeHandle.setBackground(inset);
+
+        final float[] startY = {0f};
+        final float[] startScale = {1f};
+        final float[] pendingScale = {1f};
+        mResizeHandle.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    startY[0] = event.getRawY();
+                    startScale[0] = Settings.getValues().mKeyboardHeightScale;
+                    pendingScale[0] = startScale[0];
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    float deltaY = startY[0] - event.getRawY(); // drag up = bigger
+                    float deltaPct = deltaY / (200 * density); // ~200dp drag = full range
+                    pendingScale[0] = Math.max(0.5f, Math.min(1.5f, startScale[0] + deltaPct));
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    // Apply the new scale on finger release
+                    if (Math.abs(pendingScale[0] - startScale[0]) >= 0.02f) {
+                        Settings.getInstance().writeHeightScale(pendingScale[0]);
+                        setThemeNeedsReload();
+                        reloadMainKeyboard();
+                    }
+                    return true;
+                case MotionEvent.ACTION_CANCEL:
+                    return true;
+            }
+            return false;
+        });
     }
 
     /** Enter minimal voice keyboard mode — large mic, status, no QWERTY. */
@@ -799,6 +857,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mFeatureDrawerView = mCurrentInputView.findViewById(R.id.feature_drawer_view);
         mVoiceInputModeView = mCurrentInputView.findViewById(R.id.voice_input_mode_view);
         mFakeToastView = mCurrentInputView.findViewById(R.id.fakeToast);
+        mResizeHandle = mCurrentInputView.findViewById(R.id.keyboard_resize_handle);
+        setupResizeHandle(displayContext);
 
         mKeyboardViewWrapper = mCurrentInputView.findViewById(R.id.keyboard_view_wrapper);
         mKeyboardViewWrapper.setKeyboardActionListener(mLatinIME.mKeyboardActionListener);
