@@ -1428,7 +1428,8 @@ public class LatinIME extends InputMethodService implements
             state -> {  // onStateChange
                 switch (state) {
                     case LISTENING:
-                        showVoiceStatus("\uD83C\uDFA4  Listening... tap mic to stop");
+                        showVoiceStatusTappable("\uD83C\uDFA4  Listening... tap here to stop",
+                            () -> { if (mVoiceInputManager != null) mVoiceInputManager.toggleRecording(); });
                         break;
                     case TRANSCRIBING:
                         showVoiceStatus("\u23F3  Transcribing...");
@@ -1451,6 +1452,10 @@ public class LatinIME extends InputMethodService implements
     }
 
     private void showVoiceStatus(String message) {
+        showVoiceStatusTappable(message, null);
+    }
+
+    private void showVoiceStatusTappable(String message, Runnable onTap) {
         if (mSuggestionStripView == null) return;
         android.widget.TextView tv = new android.widget.TextView(mDisplayContext);
         tv.setText(message);
@@ -1460,6 +1465,10 @@ public class LatinIME extends InputMethodService implements
         tv.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
             android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
             android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+        if (onTap != null) {
+            tv.setClickable(true);
+            tv.setOnClickListener(v -> onTap.run());
+        }
         mSuggestionStripView.setExternalSuggestionView(tv, false);
     }
 
