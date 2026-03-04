@@ -14,6 +14,7 @@ import helium314.keyboard.latin.utils.getActivity
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.SettingsActivity
+import helium314.keyboard.settings.SettingsWithoutKey
 
 @Composable
 fun ThemeSizeScreen(onClickBack: () -> Unit) {
@@ -42,6 +43,8 @@ fun ThemeSizeScreen(onClickBack: () -> Unit) {
         Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX,
         Settings.PREF_BOTTOM_PADDING_SCALE_PREFIX,
         Settings.PREF_FONT_SCALE,
+        // Reset
+        SettingsWithoutKey.RESET_LAYOUT,
     )
 
     SearchSettingsScreen(
