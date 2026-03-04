@@ -75,8 +75,8 @@
     <string name="voice_ai_log_clear">Clear log</string>
     <string name="voice_ai_log_cleared">Log cleared</string>
     <string name="voice_ai_log_empty">No activity logged yet</string>
-    <string name="voice_ai_test_api_key">Test API key</string>
-    <string name="voice_ai_test_api_key_description">Validate your current API key with the provider</string>
+    <string name="voice_ai_test_api_key">Test API keys</string>
+    <string name="voice_ai_test_api_key_description">Validate all entered API keys</string>
     <string name="voice_ai_test_api_key_testing">Testing\u2026</string>
     <string name="voice_ai_test_api_key_valid">API key is valid</string>
     <string name="voice_ai_share">Share</string>

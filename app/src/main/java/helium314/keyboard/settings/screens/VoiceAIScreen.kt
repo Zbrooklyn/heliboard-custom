@@ -45,6 +45,7 @@ import helium314.keyboard.settings.SettingsActivity
 import helium314.keyboard.settings.SettingsWithoutKey
 import helium314.keyboard.settings.preferences.ListPreference
 import helium314.keyboard.settings.preferences.Preference
+import helium314.keyboard.settings.preferences.SecretTextInputPreference
 import helium314.keyboard.settings.preferences.TextInputPreference
 
 @Composable
@@ -111,11 +112,11 @@ fun createVoiceAISettings(context: Context) = listOf(
             default = Defaults.PREF_AI_PROVIDER,
         )
     },
-    Setting(context, Settings.PREF_GEMINI_API_KEY, R.string.voice_ai_gemini_key) {
-        TextInputPreference(setting = it, default = Defaults.PREF_GEMINI_API_KEY)
-    },
     Setting(context, Settings.PREF_OPENAI_API_KEY, R.string.voice_ai_openai_key) {
-        TextInputPreference(setting = it, default = Defaults.PREF_OPENAI_API_KEY)
+        SecretTextInputPreference(setting = it, default = Defaults.PREF_OPENAI_API_KEY)
+    },
+    Setting(context, Settings.PREF_GEMINI_API_KEY, R.string.voice_ai_gemini_key) {
+        SecretTextInputPreference(setting = it, default = Defaults.PREF_GEMINI_API_KEY)
     },
     Setting(context, SettingsWithoutKey.TEST_API_KEY, R.string.voice_ai_test_api_key) {
         TestApiKeyPreference()
@@ -278,21 +279,28 @@ private fun TestApiKeyPreference() {
                 isTesting = true
                 testResult = null
                 val prefs = context.prefs()
-                val provider = prefs.getString(Settings.PREF_AI_PROVIDER, Defaults.PREF_AI_PROVIDER) ?: "gemini"
-                val apiKey = if (provider == "openai")
-                    prefs.getString(Settings.PREF_OPENAI_API_KEY, "") ?: ""
-                else
-                    prefs.getString(Settings.PREF_GEMINI_API_KEY, "") ?: ""
+                val openaiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, "") ?: ""
+                val geminiKey = prefs.getString(Settings.PREF_GEMINI_API_KEY, "") ?: ""
 
                 Thread {
-                    val result = kotlinx.coroutines.runBlocking {
-                        if (provider == "openai") ApiKeyValidator.validateOpenAI(apiKey)
-                        else ApiKeyValidator.validateGemini(apiKey)
+                    val results = mutableListOf<String>()
+                    // Test all keys that have been entered
+                    if (openaiKey.isNotEmpty()) {
+                        val r = kotlinx.coroutines.runBlocking { ApiKeyValidator.validateOpenAI(openaiKey) }
+                        results.add("OpenAI: " + when (r) {
+                            is ApiKeyValidator.Result.Valid -> "Valid"
+                            is ApiKeyValidator.Result.Invalid -> r.message
+                        })
                     }
-                    val message = when (result) {
-                        is ApiKeyValidator.Result.Valid -> context.getString(R.string.voice_ai_test_api_key_valid)
-                        is ApiKeyValidator.Result.Invalid -> result.message
+                    if (geminiKey.isNotEmpty()) {
+                        val r = kotlinx.coroutines.runBlocking { ApiKeyValidator.validateGemini(geminiKey) }
+                        results.add("Gemini: " + when (r) {
+                            is ApiKeyValidator.Result.Valid -> "Valid"
+                            is ApiKeyValidator.Result.Invalid -> r.message
+                        })
                     }
+                    val message = if (results.isEmpty()) "No API keys entered"
+                        else results.joinToString("\n")
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         testResult = message
                         isTesting = false
