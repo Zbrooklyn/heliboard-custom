@@ -14,6 +14,12 @@ object ActivityLog {
     private val entries = mutableListOf<String>()
     private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
+    // API usage counters (in-memory, reset on app restart)
+    private var voiceLocalCount = 0
+    private var voiceCloudCount = 0
+    private var rewriteGeminiCount = 0
+    private var rewriteOpenAICount = 0
+
     @Synchronized
     fun log(tag: String, message: String) {
         val timestamp = dateFormat.format(Date())
@@ -22,6 +28,22 @@ object ActivityLog {
         if (entries.size > MAX_ENTRIES) {
             entries.removeAt(0)
         }
+    }
+
+    @Synchronized
+    fun trackApiCall(type: String) {
+        when (type) {
+            "voice_local" -> voiceLocalCount++
+            "voice_cloud" -> voiceCloudCount++
+            "rewrite_gemini" -> rewriteGeminiCount++
+            "rewrite_openai" -> rewriteOpenAICount++
+        }
+    }
+
+    @Synchronized
+    fun getUsageStats(): String {
+        return "Voice (local): $voiceLocalCount | Voice (cloud): $voiceCloudCount | " +
+               "Rewrite Gemini: $rewriteGeminiCount | Rewrite OpenAI: $rewriteOpenAICount"
     }
 
     @Synchronized

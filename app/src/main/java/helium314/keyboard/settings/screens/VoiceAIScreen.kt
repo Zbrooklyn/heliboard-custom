@@ -370,5 +370,10 @@ private fun runVoiceBenchmark(context: Context): String {
         }
     }
 
+    // API usage stats
+    sb.appendLine()
+    sb.appendLine("=== API Usage (this session) ===")
+    sb.appendLine(ActivityLog.getUsageStats())
+
     return sb.toString()
 }

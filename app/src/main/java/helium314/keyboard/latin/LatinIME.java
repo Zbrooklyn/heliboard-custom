@@ -1457,7 +1457,16 @@ public class LatinIME extends InputMethodService implements
             text -> {  // onResult
                 if (text != null && !text.isEmpty()) {
                     ActivityLog.INSTANCE.log("Voice", "Transcription result: " + text.length() + " chars");
-                    mInputLogic.mConnection.commitText(text, 1);
+                    // Auto-capitalize first letter and add period if missing
+                    String processed = text.trim();
+                    if (!processed.isEmpty()) {
+                        processed = Character.toUpperCase(processed.charAt(0)) + processed.substring(1);
+                        char last = processed.charAt(processed.length() - 1);
+                        if (last != '.' && last != '!' && last != '?' && last != ',') {
+                            processed = processed + ".";
+                        }
+                    }
+                    mInputLogic.mConnection.commitText(processed + " ", 1);
                 } else {
                     ActivityLog.INSTANCE.log("Voice", "No speech detected");
                     Toast.makeText(this, "No speech detected", Toast.LENGTH_SHORT).show();
@@ -1571,6 +1580,12 @@ public class LatinIME extends InputMethodService implements
         }
 
         ActivityLog.INSTANCE.log("Voice", "Toggle recording");
+        // Track API usage
+        if (mVoiceInputManager.needsLocalModel()) {
+            ActivityLog.INSTANCE.trackApiCall("voice_local");
+        } else {
+            ActivityLog.INSTANCE.trackApiCall("voice_cloud");
+        }
         mVoiceInputManager.toggleRecording();
     }
 
@@ -1655,6 +1670,7 @@ public class LatinIME extends InputMethodService implements
 
         // Show loading status
         ActivityLog.INSTANCE.log("Rewrite", "Starting with " + client.getName() + " (" + text.length() + " chars)");
+        ActivityLog.INSTANCE.trackApiCall("openai".equals(provider) ? "rewrite_openai" : "rewrite_gemini");
         showVoiceStatus("\u2728 Rewriting with " + client.getName() + "...");
 
         // Call AI on background thread

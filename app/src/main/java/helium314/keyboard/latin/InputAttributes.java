@@ -98,11 +98,11 @@ public final class InputAttributes {
 
         mShouldInsertSpacesAutomatically = InputTypeUtils.isAutoSpaceFriendlyType(mInputType);
 
+        // WhisperClick has built-in voice (whisper.cpp) — no need to check for external voice IME.
+        // Still hide mic for password fields and apps that explicitly disable it.
         final boolean noMicrophone = mIsPasswordField
-                || InputTypeUtils.isEmailVariation(variation)
                 || hasNoMicrophoneKeyOption()
-                || !RichInputMethodManager.isInitialized() // avoid crash when only using spell checker
-                || !RichInputMethodManager.getInstance().isShortcutImeReady();
+                || !RichInputMethodManager.isInitialized(); // avoid crash when only using spell checker
         mShouldShowVoiceInputKey = !noMicrophone;
 
         mDisableGestureFloatingPreviewText = InputAttributes.inPrivateImeOptions(
