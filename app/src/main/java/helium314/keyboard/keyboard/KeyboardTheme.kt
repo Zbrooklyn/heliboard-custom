@@ -65,8 +65,9 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
         const val THEME_PINK = "pink"
         const val THEME_SAND = "sand"
         const val THEME_VIOLETTE = "violette"
+        const val THEME_SOFT_LIGHT = "soft_light"
         fun getAvailableDefaultColors(prefs: SharedPreferences, isNight: Boolean) = listOfNotNull(
-            if (!isNight) THEME_LIGHT else null, THEME_DARK,
+            if (!isNight) THEME_SOFT_LIGHT else null, if (!isNight) THEME_LIGHT else null, THEME_DARK,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) THEME_DYNAMIC else null,
             if (prefs.getString(Settings.PREF_THEME_STYLE, Defaults.PREF_THEME_STYLE) == STYLE_HOLO) THEME_HOLO_WHITE else null,
             THEME_DARKER,
@@ -162,6 +163,18 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
                     ContextCompat.getColor(context, R.color.key_background_normal_lxx_light_border),
                     ContextCompat.getColor(context, R.color.key_text_color_lxx_light),
                     ContextCompat.getColor(context, R.color.key_hint_letter_color_lxx_light),
+                    keyboardBackground = backgroundImage
+                )
+                THEME_SOFT_LIGHT -> DefaultColors(
+                    themeStyle,
+                    hasBorders,
+                    "#7B8FA0".toColorInt(),  // accent — muted blue-gray
+                    "#F0EDE8".toColorInt(),  // background — warm cream beige
+                    "#FAFAF7".toColorInt(),  // keys — soft warm white
+                    "#E3DFD9".toColorInt(),  // functional keys — warm light gray
+                    "#FAFAF7".toColorInt(),  // spacebar — matches keys
+                    "#2C2A28".toColorInt(),  // text — warm near-black
+                    "#8A8580".toColorInt(),  // hint text — warm medium gray
                     keyboardBackground = backgroundImage
                 )
                 THEME_DARK -> DefaultColors(
