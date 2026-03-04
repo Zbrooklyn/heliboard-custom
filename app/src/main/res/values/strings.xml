@@ -63,6 +63,15 @@
     <string name="voice_ai_benchmark">Run voice benchmark</string>
     <string name="voice_ai_benchmark_description">Test CPU, model loading, and inference speed</string>
     <string name="voice_ai_benchmark_running">Running benchmark\u2026</string>
+    <string name="voice_ai_benchmark_copy">Copy results</string>
+    <string name="voice_ai_benchmark_copied">Benchmark results copied</string>
+    <string name="voice_ai_activity_log">Activity log</string>
+    <string name="voice_ai_activity_log_description">Voice and AI event history for debugging</string>
+    <string name="voice_ai_log_copy">Copy log</string>
+    <string name="voice_ai_log_copied">Log copied to clipboard</string>
+    <string name="voice_ai_log_clear">Clear log</string>
+    <string name="voice_ai_log_cleared">Log cleared</string>
+    <string name="voice_ai_log_empty">No activity logged yet</string>
     <!-- Settings screen title for keyboard theme settings -->
     <string name="settings_screen_theme">Theme</string>
     <!-- Settings category title for Preference/Input settings -->

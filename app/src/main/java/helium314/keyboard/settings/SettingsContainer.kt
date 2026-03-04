@@ -85,4 +85,5 @@ object SettingsWithoutKey {
     const val CUSTOM_FONT = "custom_font"
     const val CUSTOM_EMOJI_FONT = "custom_emoji_font"
     const val VOICE_BENCHMARK = "voice_benchmark"
+    const val ACTIVITY_LOG = "activity_log"
 }

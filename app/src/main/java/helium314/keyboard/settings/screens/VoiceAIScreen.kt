@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.settings.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +36,7 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.latin.voice.ActivityLog
 import helium314.keyboard.latin.voice.ModelManager
 import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.Setting
@@ -59,6 +67,7 @@ fun VoiceAIScreen(onClickBack: () -> Unit) {
         // Diagnostics section
         R.string.voice_ai_category_diagnostics,
         SettingsWithoutKey.VOICE_BENCHMARK,
+        SettingsWithoutKey.ACTIVITY_LOG,
     )
 
     SearchSettingsScreen(
@@ -106,7 +115,16 @@ fun createVoiceAISettings(context: Context) = listOf(
     Setting(context, SettingsWithoutKey.VOICE_BENCHMARK, R.string.voice_ai_benchmark) {
         VoiceBenchmarkPreference()
     },
+    Setting(context, SettingsWithoutKey.ACTIVITY_LOG, R.string.voice_ai_activity_log) {
+        ActivityLogPreference()
+    },
 )
+
+private fun copyToClipboard(context: Context, label: String, text: String, toastRes: Int) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+    Toast.makeText(context, toastRes, Toast.LENGTH_SHORT).show()
+}
 
 @Composable
 private fun VoiceBenchmarkPreference() {
@@ -142,6 +160,72 @@ private fun VoiceBenchmarkPreference() {
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = {
+                    copyToClipboard(context, "Benchmark", benchmarkResult!!, R.string.voice_ai_benchmark_copied)
+                }) {
+                    Text(stringResource(R.string.voice_ai_benchmark_copy))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityLogPreference() {
+    val context = LocalContext.current
+    var expanded by remember { mutableStateOf(false) }
+    var logText by remember { mutableStateOf("") }
+
+    Column {
+        Preference(
+            name = stringResource(R.string.voice_ai_activity_log),
+            description = stringResource(R.string.voice_ai_activity_log_description),
+            onClick = {
+                logText = ActivityLog.getLog()
+                expanded = !expanded
+            }
+        )
+        if (expanded) {
+            if (logText.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.voice_ai_log_empty),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    text = logText,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = {
+                    if (logText.isNotEmpty()) {
+                        copyToClipboard(context, "Activity Log", logText, R.string.voice_ai_log_copied)
+                    }
+                }) {
+                    Text(stringResource(R.string.voice_ai_log_copy))
+                }
+                TextButton(onClick = {
+                    ActivityLog.clear()
+                    logText = ""
+                    Toast.makeText(context, R.string.voice_ai_log_cleared, Toast.LENGTH_SHORT).show()
+                }) {
+                    Text(stringResource(R.string.voice_ai_log_clear))
+                }
+            }
         }
     }
 }

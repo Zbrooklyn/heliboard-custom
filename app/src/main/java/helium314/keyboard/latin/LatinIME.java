@@ -89,6 +89,7 @@ import helium314.keyboard.latin.ai.OpenAIClient;
 import helium314.keyboard.latin.ai.RewriteProvider;
 import helium314.keyboard.latin.ai.RewriteHelper;
 import helium314.keyboard.latin.ai.RewriteVariants;
+import helium314.keyboard.latin.voice.ActivityLog;
 import helium314.keyboard.latin.voice.ModelDownloader;
 import helium314.keyboard.latin.voice.ModelManager;
 import helium314.keyboard.latin.voice.VoiceInputManager;
@@ -1440,16 +1441,20 @@ public class LatinIME extends InputMethodService implements
     // --- Voice input (whisper.cpp integration) ---
 
     private void initVoiceInput() {
+        ActivityLog.INSTANCE.log("Voice", "Initializing VoiceInputManager");
         mVoiceInputManager = new VoiceInputManager(
             this,
             text -> {  // onResult
                 if (text != null && !text.isEmpty()) {
+                    ActivityLog.INSTANCE.log("Voice", "Transcription result: " + text.length() + " chars");
                     mInputLogic.mConnection.commitText(text, 1);
                 } else {
+                    ActivityLog.INSTANCE.log("Voice", "No speech detected");
                     Toast.makeText(this, "No speech detected", Toast.LENGTH_SHORT).show();
                 }
             },
             state -> {  // onStateChange
+                ActivityLog.INSTANCE.log("Voice", "State: " + state.name());
                 switch (state) {
                     case LISTENING:
                         showVoiceStatusTappable("\uD83C\uDFA4  Listening... tap here to stop",
@@ -1541,10 +1546,12 @@ public class LatinIME extends InputMethodService implements
             }
         }
 
+        ActivityLog.INSTANCE.log("Voice", "Toggle recording");
         mVoiceInputManager.toggleRecording();
     }
 
     private void startModelDownload() {
+        ActivityLog.INSTANCE.log("Voice", "Starting model download");
         new Thread(() -> {
             boolean success = ModelManager.downloadDefaultModelBlocking(
                 LatinIME.this,
@@ -1557,6 +1564,7 @@ public class LatinIME extends InputMethodService implements
             );
             mHandler.post(() -> {
                 if (success) {
+                    ActivityLog.INSTANCE.log("Voice", "Model download complete");
                     clearVoiceStatus();
                     Toast.makeText(this, "Voice model ready! Tap mic to start.", Toast.LENGTH_SHORT).show();
                     if (mVoiceInputManager != null) {
@@ -1566,6 +1574,7 @@ public class LatinIME extends InputMethodService implements
                         }
                     }
                 } else {
+                    ActivityLog.INSTANCE.log("Voice", "Model download failed");
                     clearVoiceStatus();
                     Toast.makeText(this, "Download failed. Check internet and try again.", Toast.LENGTH_LONG).show();
                 }
@@ -1621,6 +1630,7 @@ public class LatinIME extends InputMethodService implements
         mOriginalRewriteText = text;
 
         // Show loading status
+        ActivityLog.INSTANCE.log("Rewrite", "Starting with " + client.getName() + " (" + text.length() + " chars)");
         showVoiceStatus("\u2728 Rewriting with " + client.getName() + "...");
 
         // Call AI on background thread
@@ -1630,11 +1640,13 @@ public class LatinIME extends InputMethodService implements
         new Thread(() -> {
             try {
                 RewriteVariants variants = RewriteHelper.rewriteAllBlocking(finalClient, finalApiKey, finalText);
+                ActivityLog.INSTANCE.log("Rewrite", "Success — " + variants.toList().size() + " variants");
                 mHandler.post(() -> {
                     mRewriteVariants = variants;
                     showRewriteVariants(variants);
                 });
             } catch (Exception e) {
+                ActivityLog.INSTANCE.log("Rewrite", "Failed: " + e.getMessage());
                 android.util.Log.e(TAG, "Rewrite failed", e);
                 mHandler.post(() -> {
                     clearVoiceStatus();
