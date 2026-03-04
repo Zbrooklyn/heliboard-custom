@@ -3,12 +3,16 @@ package helium314.keyboard.latin.voice
 import android.content.Context
 import android.util.Log
 import com.whispercpp.whisper.WhisperContext
+import helium314.keyboard.latin.ai.WhisperCloudClient
+import helium314.keyboard.latin.settings.Defaults
+import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -52,13 +56,33 @@ class VoiceInputManager(
 
     fun isModelLoaded(): Boolean = whisperContext != null
 
+    /** Unload the whisper model to free memory. Call when keyboard hides. */
+    fun unloadModel() {
+        if (whisperContext == null) return
+        scope.launch {
+            try {
+                whisperContext?.release()
+                whisperContext = null
+                Log.d(TAG, "Whisper model unloaded to save memory")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unloading model", e)
+                whisperContext = null
+            }
+        }
+    }
+
+    /** Returns true if cloud STT mode is selected and an OpenAI API key is configured. */
+    fun isCloudMode(): Boolean {
+        val prefs = context.prefs()
+        val sttMode = prefs.getString(Settings.PREF_STT_MODE, Defaults.PREF_STT_MODE)
+        return sttMode == "cloud"
+    }
+
+    /** Cloud mode doesn't need a local model — only needs an API key. */
+    fun needsLocalModel(): Boolean = !isCloudMode()
+
     fun getModelFile(): File? {
-        val modelsDir = File(context.filesDir, "models")
-        if (!modelsDir.exists()) return null
-        // Return the first .bin model file found
-        return modelsDir.listFiles()
-            ?.filter { it.name.endsWith(".bin") && !it.name.endsWith(".tmp") }
-            ?.firstOrNull()
+        return ModelManager.getActiveModelFile(context)
     }
 
     fun toggleRecording() {
@@ -94,10 +118,19 @@ class VoiceInputManager(
                     }
                     return@launch
                 }
-                val floats = FloatArray(samples.size) { samples[it] / 32768.0f }
-                val text = whisperContext?.transcribeData(floats, printTimestamp = false) ?: ""
+
+                val text = if (isCloudMode()) {
+                    transcribeCloud(samples)
+                } else {
+                    transcribeLocal(samples)
+                }
+
                 withContext(Dispatchers.Main) {
-                    onResult.onResult(text.trim())
+                    if (text.isNullOrBlank()) {
+                        onResult.onResult("")
+                    } else {
+                        onResult.onResult(text.trim())
+                    }
                     state = VoiceState.IDLE
                     onStateChange.onStateChange(state)
                 }
@@ -106,7 +139,10 @@ class VoiceInputManager(
                 withContext(Dispatchers.Main) {
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
-                    // Auto-recover to IDLE after error
+                }
+                // Show error state for 2s so user can see it, then auto-recover
+                delay(2000)
+                withContext(Dispatchers.Main) {
                     state = VoiceState.IDLE
                     onStateChange.onStateChange(state)
                 }
@@ -114,14 +150,36 @@ class VoiceInputManager(
         }
     }
 
+    /** Transcribe using local whisper.cpp model. */
+    private suspend fun transcribeLocal(samples: ShortArray): String? {
+        val floats = FloatArray(samples.size) { samples[it] / 32768.0f }
+        return whisperContext?.transcribeData(floats, printTimestamp = false)
+    }
+
+    /** Transcribe using OpenAI Whisper cloud API. */
+    private suspend fun transcribeCloud(samples: ShortArray): String? {
+        val prefs = context.prefs()
+        val apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, Defaults.PREF_OPENAI_API_KEY)
+        if (apiKey.isNullOrEmpty()) {
+            Log.e(TAG, "Cloud STT: No OpenAI API key configured")
+            withContext(Dispatchers.Main) {
+                state = VoiceState.ERROR
+                onStateChange.onStateChange(state)
+            }
+            return null
+        }
+        return WhisperCloudClient.transcribe(apiKey, samples)
+    }
+
     fun release() {
-        scope.cancel()
-        recorder.release()
-        runBlocking {
+        // Release whisper context in scope before cancelling it
+        scope.launch {
             try {
                 whisperContext?.release()
             } catch (_: Exception) { }
         }
+        scope.cancel()
+        recorder.release()
     }
 
     companion object {

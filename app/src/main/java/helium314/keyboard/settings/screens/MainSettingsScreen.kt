@@ -42,6 +42,7 @@ fun MainSettingsScreen(
     onClickLanguage: () -> Unit,
     onClickLayouts: () -> Unit,
     onClickDictionaries: () -> Unit,
+    onClickVoiceAI: () -> Unit,
     onClickBack: () -> Unit,
 ) {
     SearchSettingsScreen(
@@ -54,6 +55,12 @@ fun MainSettingsScreen(
             Column(
                 Modifier.verticalScroll(rememberScrollState()).then(Modifier.padding(innerPadding))
             ) {
+                // Order: Appearance → Language → Typing → Voice & AI → Toolbar → Swipe → Input → Advanced → About
+                Preference(
+                    name = stringResource(R.string.settings_screen_appearance),
+                    onClick = onClickAppearance,
+                    icon = R.drawable.ic_settings_appearance
+                ) { NextScreenIcon() }
                 Preference(
                     name = stringResource(R.string.language_and_layouts_title),
                     description = enabledSubtypes.joinToString(", ") { it.displayName() },
@@ -61,14 +68,14 @@ fun MainSettingsScreen(
                     icon = R.drawable.ic_settings_languages
                 ) { NextScreenIcon() }
                 Preference(
-                    name = stringResource(R.string.settings_screen_preferences),
-                    onClick = onClickPreferences,
-                    icon = R.drawable.ic_settings_preferences
+                    name = stringResource(R.string.settings_screen_correction),
+                    onClick = onClickTextCorrection,
+                    icon = R.drawable.ic_settings_correction
                 ) { NextScreenIcon() }
                 Preference(
-                    name = stringResource(R.string.settings_screen_appearance),
-                    onClick = onClickAppearance,
-                    icon = R.drawable.ic_settings_appearance
+                    name = stringResource(R.string.settings_screen_voice_ai),
+                    onClick = onClickVoiceAI,
+                    icon = R.drawable.ic_rewrite
                 ) { NextScreenIcon() }
                 Preference(
                     name = stringResource(R.string.settings_screen_toolbar),
@@ -89,9 +96,9 @@ fun MainSettingsScreen(
                         icon = R.drawable.ic_settings_gesture
                     ) { NextScreenIcon() }
                 Preference(
-                    name = stringResource(R.string.settings_screen_correction),
-                    onClick = onClickTextCorrection,
-                    icon = R.drawable.ic_settings_correction
+                    name = stringResource(R.string.settings_screen_preferences),
+                    onClick = onClickPreferences,
+                    icon = R.drawable.ic_settings_preferences
                 ) { NextScreenIcon() }
                 Preference(
                     name = stringResource(R.string.settings_screen_secondary_layouts),
@@ -124,7 +131,7 @@ private fun PreviewScreen() {
     initPreview(LocalContext.current)
     Theme(previewDark) {
         Surface {
-            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 }

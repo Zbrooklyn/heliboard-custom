@@ -7,6 +7,26 @@ plugins {
     kotlin("plugin.compose") version "2.2.21"
 }
 
+// Derive version from git tags: v1.0.0 → versionCode=10000, versionName="1.0.0"
+fun gitVersionCode(): Int {
+    return try {
+        val tag = Runtime.getRuntime().exec(arrayOf("git", "describe", "--tags", "--abbrev=0"))
+            .inputStream.bufferedReader().readText().trim().removePrefix("v")
+        val parts = tag.split(".")
+        val major = parts.getOrNull(0)?.toIntOrNull() ?: 1
+        val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
+        major * 10000 + minor * 100 + patch
+    } catch (_: Exception) { 3700 }
+}
+
+fun gitVersionName(): String {
+    return try {
+        Runtime.getRuntime().exec(arrayOf("git", "describe", "--tags", "--always"))
+            .inputStream.bufferedReader().readText().trim().removePrefix("v")
+    } catch (_: Exception) { "3.7-dev" }
+}
+
 android {
     compileSdk = 35
 
@@ -14,8 +34,8 @@ android {
         applicationId = "helium314.keyboard"
         minSdk = 21
         targetSdk = 35
-        versionCode = 3700
-        versionName = "3.7-beta1"
+        versionCode = gitVersionCode()
+        versionName = gitVersionName()
         ndk {
             abiFilters.clear()
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
@@ -28,9 +48,9 @@ android {
             val ksFile = file("${rootDir}/keystore.jks")
             if (ksFile.exists()) {
                 storeFile = ksFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "heliboard123"
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: throw GradleException("KEYSTORE_PASSWORD env var not set")
                 keyAlias = System.getenv("KEY_ALIAS") ?: "heliboard"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: "heliboard123"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: throw GradleException("KEY_PASSWORD env var not set")
             }
         }
     }

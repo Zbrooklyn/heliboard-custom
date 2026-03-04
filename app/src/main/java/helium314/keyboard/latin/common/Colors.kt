@@ -429,8 +429,9 @@ class DefaultColors (
             pressedStripElementBackground = if (isDarkColor(background)) 0x22ffffff // assume background is similar to the background color
                 else 0x11000000
         } else if (hasKeyBorders) {
-            stripBackground = background
-            pressedStripElementBackground = adjustedBackground
+            // Samsung-style: use subtle dark gray strip instead of pure black
+            stripBackground = if (background == Color.BLACK) adjustedBackground else background
+            pressedStripElementBackground = if (background == Color.BLACK) doubleAdjustedBackground else adjustedBackground
         } else {
             stripBackground = adjustedBackground
             pressedStripElementBackground = doubleAdjustedBackground

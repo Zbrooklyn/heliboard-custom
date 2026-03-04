@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class Recorder {
     private val executor = Executors.newSingleThreadExecutor()
     private val scope = CoroutineScope(executor.asCoroutineDispatcher())
+    @Volatile
     private var thread: AudioCaptureThread? = null
 
     suspend fun startRecording(onError: (Exception) -> Unit) = withContext(scope.coroutineContext) {

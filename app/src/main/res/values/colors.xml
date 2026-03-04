@@ -39,8 +39,8 @@
     <color name="background_amoled_black">#000000</color>
     <color name="background_amoled_dark">#333333</color>
     <!-- Samsung-style two-tone: measured from S24 Ultra screenshot -->
-    <color name="key_background_amoled">#2D2D2F</color>
-    <color name="functional_key_amoled">#171719</color>
+    <color name="key_background_amoled">#3A3A3A</color>
+    <color name="functional_key_amoled">#1C1C1E</color>
 
     <!-- Color resources for LXX_Base theme. -->
     <color name="keyboard_background_lxx_base">@android:color/white</color>

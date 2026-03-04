@@ -175,4 +175,11 @@ object Defaults {
     const val PREF_USER_MORE_COLORS = 0
     const val PREF_USER_ALL_COLORS = ""
     const val PREF_SAVE_SUBTYPE_PER_APP = false
+
+    // AI / Voice defaults
+    const val PREF_AI_PROVIDER = "gemini"  // "gemini" or "openai"
+    const val PREF_GEMINI_API_KEY = ""
+    const val PREF_OPENAI_API_KEY = ""
+    const val PREF_STT_MODE = "local"  // "local" or "cloud"
+    const val PREF_AI_ACTIVE_MODEL = "ggml-tiny.en-q5_1.bin"
 }

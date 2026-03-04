@@ -24,11 +24,12 @@ class Database private constructor(context: Context, name: String = NAME) : SQLi
         private val TAG = Database::class.java.simpleName
         private const val VERSION = 2
         const val NAME = "heliboard.db"
+        @Volatile
         private var instance: Database? = null
         fun getInstance(context: Context): Database {
-            if (instance == null)
-                instance = Database(context)
-            return instance!!
+            return instance ?: synchronized(this) {
+                instance ?: Database(context).also { instance = it }
+            }
         }
 
         // needs to be in sync with db version

@@ -11,4 +11,9 @@
 
 # after upgrading to gradle 8, stack traces contain "unknown source"
 -keepattributes SourceFile,LineNumberTable
--dontobfuscate
+
+# Keep Compose-related classes for settings UI
+-keep class helium314.keyboard.settings.** { *; }
+# Keep AI/voice classes accessed via reflection or from Java
+-keep class helium314.keyboard.latin.ai.** { *; }
+-keep class helium314.keyboard.latin.voice.** { *; }

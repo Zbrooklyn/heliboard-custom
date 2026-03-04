@@ -35,13 +35,28 @@
     <!-- Option to control whether or not to show a popup with a larger font on each key press. -->
     <string name="popup_on_keypress">Popup on keypress</string>
     <!-- Settings screen title for preferences-->
-    <string name="settings_screen_preferences">Preferences</string>
+    <string name="settings_screen_preferences">Input &amp; Feedback</string>
     <!-- Settings screen title for gesture typing preferences -->
-    <string name="settings_screen_gesture">Gesture Typing</string>
+    <string name="settings_screen_gesture">Swipe Typing</string>
     <!-- Settings screen title for text correction options -->
-    <string name="settings_screen_correction">Text correction</string>
+    <string name="settings_screen_correction">Typing &amp; Autocorrect</string>
     <!-- Settings screen title for advanced settings -->
     <string name="settings_screen_advanced">Advanced</string>
+    <!-- Settings screen title for voice and AI settings -->
+    <string name="settings_screen_voice_ai">Voice &amp; AI</string>
+    <string name="voice_ai_stt_mode">Speech-to-text mode</string>
+    <string name="voice_ai_stt_mode_summary">Choose between local (offline) or cloud (OpenAI) transcription</string>
+    <string name="voice_ai_stt_local">Local (offline)</string>
+    <string name="voice_ai_stt_cloud">Cloud (OpenAI Whisper)</string>
+    <string name="voice_ai_provider">AI rewrite provider</string>
+    <string name="voice_ai_provider_summary">Choose which AI service to use for text rewriting</string>
+    <string name="voice_ai_gemini_key">Gemini API key</string>
+    <string name="voice_ai_openai_key">OpenAI API key</string>
+    <string name="voice_ai_category_voice">Voice Input</string>
+    <string name="voice_ai_category_rewrite">AI Rewrite</string>
+    <string name="voice_ai_category_models">Voice Models</string>
+    <string name="voice_ai_active_model">Active model</string>
+    <string name="voice_ai_active_model_summary">Select which whisper model to use for local transcription</string>
     <!-- Settings screen title for keyboard theme settings -->
     <string name="settings_screen_theme">Theme</string>
     <!-- Settings category title for Preference/Input settings -->
@@ -354,6 +369,7 @@
     <string name="redo" tools:keep="@string/redo">Redo</string>
     <string name="close_history" tools:keep="@string/close_history">Close clipboard history</string>
     <string name="emoji" tools:keep="@string/emoji">Emoji</string>
+    <string name="rewrite" tools:keep="@string/rewrite">AI Rewrite</string>
     <!-- Title of the setting to set clipboard toolbar keys -->
     <string name="clipboard_toolbar_keys">Select clipboard toolbar keys</string>
     <!-- Title of the setting to set pinned toolbar keys -->
@@ -380,6 +396,11 @@
     <string name="prefs_narrow_key_gaps">Narrow key gaps</string>
     <!-- Title of the setting for setting keyboard height -->
     <string name="prefs_keyboard_height_scale">Keyboard height scale</string>
+    <!-- Keyboard height preset labels -->
+    <string name="height_preset_compact">Compact</string>
+    <string name="height_preset_normal">Normal</string>
+    <string name="height_preset_large">Large</string>
+    <string name="height_preset_custom">Custom</string>
     <!-- Title of the setting for setting bottom padding height -->
     <string name="prefs_bottom_padding_scale">Bottom padding scale</string>
     <!-- Title of the setting for setting side padding -->
@@ -781,7 +802,7 @@ New dictionary:
     <!-- Settings screen title for appearance preferences -->
     <string name="settings_screen_appearance">Appearance</string>
     <!-- Settings screen title for toolbar preferences -->
-    <string name="settings_screen_toolbar">Toolbar</string>
+    <string name="settings_screen_toolbar">Toolbar &amp; Actions</string>
     <!-- Hidden features title -->
     <string name="hidden_features_title">Description of hidden features</string>
     <!-- Hidden features summary -->

@@ -5,7 +5,7 @@ import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.runBlocking
+// runBlocking removed — was only used in finalize() which is now removed
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -50,11 +50,8 @@ class WhisperContext private constructor(private var ptr: Long) {
         }
     }
 
-    protected fun finalize() {
-        runBlocking {
-            release()
-        }
-    }
+    // No finalize() — callers must call release() explicitly.
+    // runBlocking in finalize() can deadlock the finalizer thread.
 
     companion object {
         fun createContextFromFile(filePath: String): WhisperContext {

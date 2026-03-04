@@ -36,6 +36,7 @@ import helium314.keyboard.settings.dialogs.CustomizeIconsDialog
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.preferences.BackgroundImagePref
 import helium314.keyboard.settings.preferences.CustomFontPreference
+import helium314.keyboard.settings.preferences.KeyboardHeightPreference
 import helium314.keyboard.settings.preferences.MultiSliderPreference
 import helium314.keyboard.settings.preferences.TextInputPreference
 import helium314.keyboard.settings.previewDark
@@ -215,14 +216,7 @@ fun createAppearanceSettings(context: Context) = listOf(
         SwitchPreference(it, Defaults.PREF_NARROW_KEY_GAPS) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
     },
     Setting(context, Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX, R.string.prefs_keyboard_height_scale) { setting ->
-        MultiSliderPreference(
-            name = setting.title,
-            baseKey = setting.key,
-            dimensions = listOf(stringResource(R.string.landscape)),
-            defaults = Defaults.PREF_KEYBOARD_HEIGHT_SCALE,
-            range = 0.3f..1.5f,
-            description = { "${(100 * it).toInt()}%" }
-        ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
+        KeyboardHeightPreference(setting)
     },
     Setting(context, Settings.PREF_BOTTOM_PADDING_SCALE_PREFIX, R.string.prefs_bottom_padding_scale) { setting ->
         MultiSliderPreference(

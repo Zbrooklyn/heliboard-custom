@@ -84,7 +84,13 @@ import helium314.keyboard.latin.utils.SubtypeLocaleUtils;
 import helium314.keyboard.latin.utils.SubtypeSettings;
 import helium314.keyboard.latin.utils.SubtypeState;
 import helium314.keyboard.latin.utils.ToolbarMode;
+import helium314.keyboard.latin.ai.GeminiClient;
+import helium314.keyboard.latin.ai.OpenAIClient;
+import helium314.keyboard.latin.ai.RewriteProvider;
+import helium314.keyboard.latin.ai.RewriteHelper;
+import helium314.keyboard.latin.ai.RewriteVariants;
 import helium314.keyboard.latin.voice.ModelDownloader;
+import helium314.keyboard.latin.voice.ModelManager;
 import helium314.keyboard.latin.voice.VoiceInputManager;
 import helium314.keyboard.latin.voice.VoicePermissionActivity;
 import helium314.keyboard.settings.SettingsActivity2;
@@ -142,6 +148,10 @@ public class LatinIME extends InputMethodService implements
 
     private RichInputMethodManager mRichImm;
     private VoiceInputManager mVoiceInputManager;
+
+    // Magic Rewrite state
+    private String mOriginalRewriteText;
+    private RewriteVariants mRewriteVariants;
     final KeyboardSwitcher mKeyboardSwitcher;
     private final SubtypeState mSubtypeState = new SubtypeState((InputMethodSubtype subtype) -> { switchToSubtype(subtype); return Unit.INSTANCE; });
     private final StatsUtilsManager mStatsUtilsManager;
@@ -1041,6 +1051,10 @@ public class LatinIME extends InputMethodService implements
         super.onFinishInputView(finishingInput);
         Log.i(TAG, "onFinishInputView");
         cleanupInternalStateForFinishInput();
+        // Unload whisper model to free memory when keyboard hides
+        if (mVoiceInputManager != null) {
+            mVoiceInputManager.unloadModel();
+        }
     }
 
     private void cleanupInternalStateForFinishInput() {
@@ -1407,6 +1421,10 @@ public class LatinIME extends InputMethodService implements
             handleVoiceInput();
             return;
         }
+        if (KeyCode.REWRITE == event.getKeyCode()) {
+            handleRewrite();
+            return;
+        }
         final InputTransaction completeInputTransaction =
                 mInputLogic.onCodeInput(mSettings.getCurrent(), event,
                         mKeyboardSwitcher.getKeyboardShiftMode(),
@@ -1423,6 +1441,8 @@ public class LatinIME extends InputMethodService implements
             text -> {  // onResult
                 if (text != null && !text.isEmpty()) {
                     mInputLogic.mConnection.commitText(text, 1);
+                } else {
+                    Toast.makeText(this, "No speech detected", Toast.LENGTH_SHORT).show();
                 }
             },
             state -> {  // onStateChange
@@ -1489,19 +1509,30 @@ public class LatinIME extends InputMethodService implements
             initVoiceInput();
         }
 
-        // Check if model is downloaded
-        if (!mVoiceInputManager.isModelLoaded() && mVoiceInputManager.getModelFile() == null) {
-            showVoiceStatus("\u2B07  Downloading voice model (31MB)...");
-            startModelDownload();
-            return;
-        }
+        // Cloud mode skips local model requirement
+        if (mVoiceInputManager.needsLocalModel()) {
+            // Check if model is downloaded
+            if (!mVoiceInputManager.isModelLoaded() && mVoiceInputManager.getModelFile() == null) {
+                showVoiceStatus("\u2B07  Downloading voice model (31MB)...");
+                startModelDownload();
+                return;
+            }
 
-        // If model file exists but context not loaded yet, load it
-        if (!mVoiceInputManager.isModelLoaded()) {
-            java.io.File modelFile = mVoiceInputManager.getModelFile();
-            if (modelFile != null) {
-                mVoiceInputManager.loadModel(modelFile.getAbsolutePath());
-                showVoiceStatus("\u23F3  Loading voice model...");
+            // If model file exists but context not loaded yet, load it
+            if (!mVoiceInputManager.isModelLoaded()) {
+                java.io.File modelFile = mVoiceInputManager.getModelFile();
+                if (modelFile != null) {
+                    mVoiceInputManager.loadModel(modelFile.getAbsolutePath());
+                    showVoiceStatus("\u23F3  Loading voice model...");
+                    return;
+                }
+            }
+        } else {
+            // Cloud mode: check API key before proceeding
+            android.content.SharedPreferences prefs = KtxKt.prefs(this);
+            String apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, "");
+            if (apiKey == null || apiKey.isEmpty()) {
+                Toast.makeText(this, "Set your OpenAI API key in Voice & AI settings for cloud STT", Toast.LENGTH_LONG).show();
                 return;
             }
         }
@@ -1511,7 +1542,7 @@ public class LatinIME extends InputMethodService implements
 
     private void startModelDownload() {
         new Thread(() -> {
-            boolean success = ModelDownloader.downloadDefaultModelBlocking(
+            boolean success = ModelManager.downloadDefaultModelBlocking(
                 LatinIME.this,
                 pct -> mHandler.post(() ->
                     showVoiceStatus("\u2B07  Downloading voice model: " + pct + "%")
@@ -1522,7 +1553,7 @@ public class LatinIME extends InputMethodService implements
                     clearVoiceStatus();
                     Toast.makeText(this, "Voice model ready! Tap mic to start.", Toast.LENGTH_SHORT).show();
                     if (mVoiceInputManager != null) {
-                        java.io.File modelFile = mVoiceInputManager.getModelFile();
+                        java.io.File modelFile = ModelManager.INSTANCE.getActiveModelFile(LatinIME.this);
                         if (modelFile != null) {
                             mVoiceInputManager.loadModel(modelFile.getAbsolutePath());
                         }
@@ -1536,6 +1567,197 @@ public class LatinIME extends InputMethodService implements
     }
 
     // --- End voice input ---
+
+    // --- Magic Rewrite (AI text transformation) ---
+
+    private void handleRewrite() {
+        if (mSuggestionStripView == null) return;
+
+        // Read the current text from the input field
+        android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+
+        android.view.inputmethod.ExtractedTextRequest req = new android.view.inputmethod.ExtractedTextRequest();
+        req.hintMaxChars = 10000;
+        android.view.inputmethod.ExtractedText extractedText = ic.getExtractedText(req, 0);
+        if (extractedText == null || extractedText.text == null || extractedText.text.length() == 0) {
+            Toast.makeText(this, "Type some text first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String text = extractedText.text.toString().trim();
+        if (text.isEmpty()) {
+            Toast.makeText(this, "Type some text first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Get AI provider and API key
+        android.content.SharedPreferences prefs = KtxKt.prefs(this);
+        String provider = prefs.getString(Settings.PREF_AI_PROVIDER, "gemini");
+        String apiKey;
+        RewriteProvider client;
+
+        if ("openai".equals(provider)) {
+            apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, "");
+            client = OpenAIClient.INSTANCE;
+        } else {
+            apiKey = prefs.getString(Settings.PREF_GEMINI_API_KEY, "");
+            client = GeminiClient.INSTANCE;
+        }
+
+        if (apiKey == null || apiKey.isEmpty()) {
+            Toast.makeText(this, "Set your " + client.getName() + " API key in Voice & AI settings", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // Store original text for undo
+        mOriginalRewriteText = text;
+
+        // Show loading status
+        showVoiceStatus("\u2728 Rewriting with " + client.getName() + "...");
+
+        // Call AI on background thread
+        final String finalApiKey = apiKey;
+        final String finalText = text;
+        final RewriteProvider finalClient = client;
+        new Thread(() -> {
+            try {
+                RewriteVariants variants = RewriteHelper.rewriteAllBlocking(finalClient, finalApiKey, finalText);
+                mHandler.post(() -> {
+                    mRewriteVariants = variants;
+                    showRewriteVariants(variants);
+                });
+            } catch (Exception e) {
+                android.util.Log.e(TAG, "Rewrite failed", e);
+                mHandler.post(() -> {
+                    clearVoiceStatus();
+                    String msg = e.getMessage();
+                    if (msg != null && msg.contains("401")) {
+                        Toast.makeText(LatinIME.this, "Invalid API key. Check Voice & AI settings", Toast.LENGTH_LONG).show();
+                    } else if (msg != null && msg.contains("UnknownHostException")) {
+                        Toast.makeText(LatinIME.this, "No internet connection", Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(LatinIME.this, "Rewrite failed: " + (msg != null ? msg : "unknown error"), Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void showRewriteVariants(RewriteVariants variants) {
+        if (mSuggestionStripView == null) return;
+
+        android.widget.HorizontalScrollView scrollView = new android.widget.HorizontalScrollView(mDisplayContext != null ? mDisplayContext : this);
+        scrollView.setHorizontalScrollBarEnabled(false);
+        scrollView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+
+        android.widget.LinearLayout chipContainer = new android.widget.LinearLayout(mDisplayContext != null ? mDisplayContext : this);
+        chipContainer.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        chipContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        chipContainer.setPadding(dpToPx(4), 0, dpToPx(4), 0);
+
+        // Get theme colors
+        int chipText = Color.WHITE;
+        int stripBg = Color.parseColor("#1A1A1A");
+        try {
+            helium314.keyboard.latin.common.Colors colors = Settings.getValues().mColors;
+            chipText = colors.get(ColorType.KEY_TEXT);
+            stripBg = colors.get(ColorType.STRIP_BACKGROUND);
+        } catch (Exception ignored) {}
+
+        // Variant labels with icons
+        String[] labels = {"\u2728 Clean", "\uD83D\uDCBC Pro", "\uD83D\uDCAC Casual", "\uD83D\uDCDD Concise", "\uD83D\uDE04 Emojify"};
+        java.util.List<kotlin.Pair<String, String>> variantList = variants.toList();
+
+        for (int i = 0; i < variantList.size(); i++) {
+            kotlin.Pair<String, String> variant = variantList.get(i);
+            android.widget.TextView chip = createRewriteChip(
+                labels[i], variant.getSecond(), chipText, stripBg);
+            chipContainer.addView(chip);
+        }
+
+        // Add undo chip
+        android.widget.TextView undoChip = createRewriteChip(
+            "\u21A9 Undo", null, chipText, stripBg);
+        undoChip.setOnClickListener(v -> undoRewrite());
+        chipContainer.addView(undoChip);
+
+        scrollView.addView(chipContainer);
+        mSuggestionStripView.setExternalSuggestionView(scrollView, true);
+    }
+
+    private android.widget.TextView createRewriteChip(String label, String rewrittenText, int textColor, int stripBg) {
+        Context ctx = mDisplayContext != null ? mDisplayContext : this;
+        android.widget.TextView chip = new android.widget.TextView(ctx);
+        chip.setText(label);
+        chip.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
+        chip.setTextColor(textColor);
+        chip.setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6));
+        chip.setSingleLine(true);
+
+        // Rounded pill background
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setCornerRadius(dpToPx(16));
+        // Lighten the strip background slightly for chip contrast
+        int chipBgColor = adjustBrightness(stripBg, 1.4f);
+        bg.setColor(chipBgColor);
+        bg.setStroke(dpToPx(1), adjustBrightness(textColor, 0.3f));
+        chip.setBackground(bg);
+
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(dpToPx(3), dpToPx(2), dpToPx(3), dpToPx(2));
+        chip.setLayoutParams(lp);
+
+        if (rewrittenText != null) {
+            chip.setOnClickListener(v -> applyRewrite(rewrittenText));
+        }
+
+        return chip;
+    }
+
+    private void applyRewrite(String newText) {
+        android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+
+        // Select all current text and replace
+        ic.performContextMenuAction(android.R.id.selectAll);
+        ic.commitText(newText, 1);
+    }
+
+    private void undoRewrite() {
+        if (mOriginalRewriteText == null) return;
+
+        android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+
+        ic.performContextMenuAction(android.R.id.selectAll);
+        ic.commitText(mOriginalRewriteText, 1);
+        mOriginalRewriteText = null;
+        mRewriteVariants = null;
+
+        // Restore normal suggestion strip
+        setNeutralSuggestionStrip();
+        mHandler.postResumeSuggestions(false);
+    }
+
+    private int dpToPx(int dp) {
+        return (int) android.util.TypedValue.applyDimension(
+            android.util.TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
+    }
+
+    private static int adjustBrightness(int color, float factor) {
+        int a = Color.alpha(color);
+        int r = Math.min(255, (int)(Color.red(color) * factor));
+        int g = Math.min(255, (int)(Color.green(color) * factor));
+        int b = Math.min(255, (int)(Color.blue(color) * factor));
+        return Color.argb(a, r, g, b);
+    }
+
+    // --- End Magic Rewrite ---
 
     public void onTextInput(final String rawText) {
         // TODO: have the keyboard pass the correct key code when we need it.

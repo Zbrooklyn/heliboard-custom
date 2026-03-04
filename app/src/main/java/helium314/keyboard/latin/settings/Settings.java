@@ -184,6 +184,13 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_LAST_SHOWN_EMOJI_CATEGORY_ID = "last_shown_emoji_category_id";
     public static final String PREF_LAST_SHOWN_EMOJI_CATEGORY_PAGE_ID = "last_shown_emoji_category_page_id";
 
+    // AI / Voice settings
+    public static final String PREF_AI_PROVIDER = "ai_provider";
+    public static final String PREF_GEMINI_API_KEY = "gemini_api_key";
+    public static final String PREF_OPENAI_API_KEY = "openai_api_key";
+    public static final String PREF_STT_MODE = "stt_mode";
+    public static final String PREF_AI_ACTIVE_MODEL = "active_voice_model";
+
     public static final String PREF_VERSION_CODE = "version_code";
     public static final String PREF_LIBRARY_CHECKSUM = "lib_checksum";
     public static final String PREF_SAVE_SUBTYPE_PER_APP = "save_subtype_per_app";
