@@ -40,11 +40,13 @@ object ModelManager {
     private val RETRY_DELAYS_MS = longArrayOf(2000, 4000, 8000)
 
     // Q5_1 quantized models — 60% smaller, faster inference, near-identical accuracy
+    // Large-v3-turbo: 6x faster than Large-v3, near-Medium accuracy, 4-layer decoder
     val availableModels = listOf(
         WhisperModel("Tiny English (Q5)", "ggml-tiny.en-q5_1.bin", "$HF_BASE/ggml-tiny.en-q5_1.bin", 31, "Tiny"),
         WhisperModel("Base English (Q5)", "ggml-base.en-q5_1.bin", "$HF_BASE/ggml-base.en-q5_1.bin", 57, "Base"),
         WhisperModel("Small English (Q5)", "ggml-small.en-q5_1.bin", "$HF_BASE/ggml-small.en-q5_1.bin", 181, "Small"),
         WhisperModel("Medium English (Q5)", "ggml-medium.en-q5_1.bin", "$HF_BASE/ggml-medium.en-q5_1.bin", 514, "Medium"),
+        WhisperModel("Large v3 Turbo (Q5)", "ggml-large-v3-turbo-q5_0.bin", "$HF_BASE/ggml-large-v3-turbo-q5_0.bin", 574, "Large"),
         WhisperModel("Tiny Multilingual (Q5)", "ggml-tiny-q5_1.bin", "$HF_BASE/ggml-tiny-q5_1.bin", 31, "Tiny"),
         WhisperModel("Base Multilingual (Q5)", "ggml-base-q5_1.bin", "$HF_BASE/ggml-base-q5_1.bin", 57, "Base"),
         WhisperModel("Small Multilingual (Q5)", "ggml-small-q5_1.bin", "$HF_BASE/ggml-small-q5_1.bin", 181, "Small"),
