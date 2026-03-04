@@ -9,17 +9,19 @@ plugins {
 
 // Derive version from git tags: v1.0.0 → versionCode=10000, versionName="1.0.0"
 // Uses providers.exec for Gradle configuration cache compatibility
-val gitTagProvider: Provider<String> = providers.exec {
+val gitTagResult = providers.exec {
     commandLine("git", "describe", "--tags", "--abbrev=0")
-}.standardOutput.asText.map { it.trim().removePrefix("v") }
-
-val gitDescribeProvider: Provider<String> = providers.exec {
+    isIgnoreExitValue = true
+}
+val gitDescribeResult = providers.exec {
     commandLine("git", "describe", "--tags", "--always")
-}.standardOutput.asText.map { it.trim().removePrefix("v") }
+    isIgnoreExitValue = true
+}
 
 fun gitVersionCode(): Int {
     return try {
-        val tag = gitTagProvider.get()
+        val tag = gitTagResult.standardOutput.asText.get().trim().removePrefix("v")
+        if (tag.isEmpty()) return 3700
         val parts = tag.split(".")
         val major = parts.getOrNull(0)?.toIntOrNull() ?: 1
         val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
@@ -30,7 +32,8 @@ fun gitVersionCode(): Int {
 
 fun gitVersionName(): String {
     return try {
-        gitDescribeProvider.get()
+        val name = gitDescribeResult.standardOutput.asText.get().trim().removePrefix("v")
+        name.ifEmpty { "3.7-dev" }
     } catch (_: Exception) { "3.7-dev" }
 }
 

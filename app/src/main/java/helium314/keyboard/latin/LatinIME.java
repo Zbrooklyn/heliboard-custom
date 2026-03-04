@@ -1544,9 +1544,12 @@ public class LatinIME extends InputMethodService implements
         new Thread(() -> {
             boolean success = ModelManager.downloadDefaultModelBlocking(
                 LatinIME.this,
-                pct -> mHandler.post(() ->
-                    showVoiceStatus("\u2B07  Downloading voice model: " + pct + "%")
-                )
+                pct -> {
+                    mHandler.post(() ->
+                        showVoiceStatus("\u2B07  Downloading voice model: " + pct + "%")
+                    );
+                    return Unit.INSTANCE;
+                }
             );
             mHandler.post(() -> {
                 if (success) {
