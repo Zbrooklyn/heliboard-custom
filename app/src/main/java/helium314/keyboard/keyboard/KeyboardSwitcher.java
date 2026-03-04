@@ -416,6 +416,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
                 mLatinIME.mKeyboardActionListener.onCodeInput(code,
                     helium314.keyboard.latin.common.Constants.SUGGESTION_STRIP_COORDINATE,
                     helium314.keyboard.latin.common.Constants.SUGGESTION_STRIP_COORDINATE, false);
+                return kotlin.Unit.INSTANCE;
             });
             mFeatureDrawerView.setVisibility(View.VISIBLE);
         }

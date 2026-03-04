@@ -1501,12 +1501,14 @@ public class LatinIME extends InputMethodService implements
                             vv.updateState(state);
                             vv.setOnMicClickListener(() -> {
                                 if (mVoiceInputManager != null) mVoiceInputManager.toggleRecording();
+                                return kotlin.Unit.INSTANCE;
                             });
                             vv.setOnBackClickListener(() -> {
                                 if (mVoiceInputManager != null && mVoiceInputManager.isRecording()) {
                                     mVoiceInputManager.toggleRecording();
                                 }
                                 mKeyboardSwitcher.exitVoiceInputMode();
+                                return kotlin.Unit.INSTANCE;
                             });
                         }
                         break;
