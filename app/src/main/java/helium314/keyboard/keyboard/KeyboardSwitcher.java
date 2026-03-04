@@ -418,6 +418,12 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
                     helium314.keyboard.latin.common.Constants.SUGGESTION_STRIP_COORDINATE, false);
                 return kotlin.Unit.INSTANCE;
             });
+            mFeatureDrawerView.setOnBackClickListener(() -> {
+                mFeatureDrawerView.setVisibility(View.GONE);
+                mKeyboardView.setVisibility(View.VISIBLE);
+                mSuggestionStripView.setVisibility(View.VISIBLE);
+                return kotlin.Unit.INSTANCE;
+            });
             mFeatureDrawerView.setVisibility(View.VISIBLE);
         }
     }

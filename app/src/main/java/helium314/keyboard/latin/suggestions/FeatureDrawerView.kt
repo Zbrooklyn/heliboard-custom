@@ -33,6 +33,7 @@ class FeatureDrawerView @JvmOverloads constructor(
     data class DrawerItem(val key: ToolbarKey, val labelRes: Int, val code: Int)
 
     private var codeInputListener: ((Int) -> Unit)? = null
+    private var onBackClick: (() -> Unit)? = null
 
     private val gridLayout = GridLayout(context).apply {
         columnCount = 4
@@ -40,10 +41,31 @@ class FeatureDrawerView @JvmOverloads constructor(
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
     }
 
+    private val backButton: TextView
+
     init {
         orientation = VERTICAL
         gravity = Gravity.CENTER
         addView(gridLayout)
+
+        // "← Keyboard" back button at the bottom
+        val density = resources.displayMetrics.density
+        backButton = TextView(context).apply {
+            text = "← Keyboard"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (8 * density).toInt()
+                bottomMargin = (8 * density).toInt()
+            }
+            setPadding(0, (10 * density).toInt(), 0, (10 * density).toInt())
+            setOnClickListener { onBackClick?.invoke() }
+        }
+        addView(backButton)
+    }
+
+    fun setOnBackClickListener(listener: () -> Unit) {
+        onBackClick = listener
     }
 
     fun setCodeInputListener(listener: (Int) -> Unit) {
@@ -58,6 +80,7 @@ class FeatureDrawerView @JvmOverloads constructor(
         val circleColor = colors.get(ColorType.KEY_BACKGROUND)
         val textColor = colors.get(ColorType.KEY_TEXT)
         val iconColor = colors.get(ColorType.TOOL_BAR_KEY)
+        backButton.setTextColor(textColor)
 
         for ((index, item) in items.withIndex()) {
             val cell = LinearLayout(context).apply {
