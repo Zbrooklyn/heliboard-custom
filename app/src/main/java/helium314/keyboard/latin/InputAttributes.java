@@ -78,7 +78,9 @@ public final class InputAttributes {
             mInputTypeShouldAutoCorrect = false;
             mApplicationSpecifiedCompletionOn = false;
             mShouldInsertSpacesAutomatically = false;
-            mShouldShowVoiceInputKey = false;
+            // WhisperClick: always show mic — voice transcription commits text like paste,
+            // works fine even in TYPE_NULL fields (terminals, games, etc.)
+            mShouldShowVoiceInputKey = RichInputMethodManager.isInitialized();
             mDisableGestureFloatingPreviewText = false;
             mIsGeneralTextInput = false;
             mNoLearning = false;
