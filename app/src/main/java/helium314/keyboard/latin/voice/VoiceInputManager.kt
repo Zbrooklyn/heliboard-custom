@@ -85,6 +85,8 @@ class VoiceInputManager(
         return ModelManager.getActiveModelFile(context)
     }
 
+    fun isRecording(): Boolean = state == VoiceState.LISTENING
+
     fun toggleRecording() {
         when (state) {
             VoiceState.IDLE -> startRecording()
@@ -99,8 +101,10 @@ class VoiceInputManager(
         scope.launch {
             recorder.startRecording { e ->
                 Log.e(TAG, "Recording error", e)
-                state = VoiceState.ERROR
-                onStateChange.onStateChange(state)
+                withContext(Dispatchers.Main) {
+                    state = VoiceState.ERROR
+                    onStateChange.onStateChange(state)
+                }
             }
         }
     }
@@ -171,13 +175,22 @@ class VoiceInputManager(
         return WhisperCloudClient.transcribe(apiKey, samples)
     }
 
+    /** Toggle between local and cloud STT mode. Returns the new mode name. */
+    fun toggleSttMode(): String {
+        val prefs = context.prefs()
+        val current = prefs.getString(Settings.PREF_STT_MODE, Defaults.PREF_STT_MODE)
+        val newMode = if (current == "cloud") "local" else "cloud"
+        prefs.edit().putString(Settings.PREF_STT_MODE, newMode).apply()
+        Log.d(TAG, "STT mode toggled: $current → $newMode")
+        return newMode
+    }
+
     fun release() {
-        // Release whisper context in scope before cancelling it
-        scope.launch {
-            try {
-                whisperContext?.release()
-            } catch (_: Exception) { }
-        }
+        // Release whisper context synchronously before cancelling scope
+        try {
+            whisperContext?.release()
+            whisperContext = null
+        } catch (_: Exception) { }
         scope.cancel()
         recorder.release()
     }

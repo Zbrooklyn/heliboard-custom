@@ -93,6 +93,7 @@ import helium314.keyboard.latin.voice.ActivityLog;
 import helium314.keyboard.latin.voice.ModelDownloader;
 import helium314.keyboard.latin.voice.ModelManager;
 import helium314.keyboard.latin.voice.VoiceInputManager;
+import helium314.keyboard.latin.voice.VoiceInputModeView;
 import helium314.keyboard.latin.voice.VoicePermissionActivity;
 import helium314.keyboard.settings.SettingsActivity2;
 import kotlin.Unit;
@@ -1440,6 +1441,14 @@ public class LatinIME extends InputMethodService implements
             handleRewrite();
             return;
         }
+        if (KeyCode.TOGGLE_ACTIONS_OVERFLOW == event.getKeyCode()) {
+            mKeyboardSwitcher.toggleFeatureDrawer();
+            return;
+        }
+        if (KeyCode.TOGGLE_STT_MODE == event.getKeyCode()) {
+            handleToggleSttMode();
+            return;
+        }
         final InputTransaction completeInputTransaction =
                 mInputLogic.onCodeInput(mSettings.getCurrent(), event,
                         mKeyboardSwitcher.getKeyboardShiftMode(),
@@ -1476,10 +1485,30 @@ public class LatinIME extends InputMethodService implements
                 ActivityLog.INSTANCE.log("Voice", "State: " + state.name());
                 // Haptic feedback on state changes
                 AudioAndHapticFeedbackManager.getInstance().vibrate(30);
+                // Update VoiceInputModeView if visible
+                if (mKeyboardSwitcher.isShowingVoiceInputMode()) {
+                    VoiceInputModeView voiceView = mKeyboardSwitcher.getVoiceInputModeView();
+                    if (voiceView != null) voiceView.updateState(state);
+                }
                 switch (state) {
                     case LISTENING:
                         mRecordingStartTime = System.currentTimeMillis();
                         startRecordingTimer();
+                        // Enter minimal voice mode
+                        mKeyboardSwitcher.setVoiceInputMode();
+                        VoiceInputModeView vv = mKeyboardSwitcher.getVoiceInputModeView();
+                        if (vv != null) {
+                            vv.updateState(state);
+                            vv.setOnMicClickListener(() -> {
+                                if (mVoiceInputManager != null) mVoiceInputManager.toggleRecording();
+                            });
+                            vv.setOnBackClickListener(() -> {
+                                if (mVoiceInputManager != null && mVoiceInputManager.isRecording()) {
+                                    mVoiceInputManager.toggleRecording();
+                                }
+                                mKeyboardSwitcher.exitVoiceInputMode();
+                            });
+                        }
                         break;
                     case TRANSCRIBING:
                         stopRecordingTimer();
@@ -1489,10 +1518,14 @@ public class LatinIME extends InputMethodService implements
                         stopRecordingTimer();
                         clearVoiceStatus();
                         Toast.makeText(this, "Voice input error", Toast.LENGTH_SHORT).show();
+                        // Exit voice mode after brief delay so user sees error
+                        mHandler.postDelayed(() -> mKeyboardSwitcher.exitVoiceInputMode(), 1500);
                         break;
                     default: // IDLE
                         stopRecordingTimer();
                         clearVoiceStatus();
+                        // Exit voice mode when done
+                        mKeyboardSwitcher.exitVoiceInputMode();
                         break;
                 }
             }
@@ -1619,6 +1652,28 @@ public class LatinIME extends InputMethodService implements
                 }
             });
         }).start();
+    }
+
+    private void handleToggleSttMode() {
+        if (mVoiceInputManager == null) {
+            initVoiceInput();
+        }
+        if (mVoiceInputManager == null) return;
+
+        String newMode = mVoiceInputManager.toggleSttMode();
+        String label = "cloud".equals(newMode) ? "Cloud STT" : "Local STT";
+        // Double haptic burst to signal mode switch
+        android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+        if (vibrator != null && vibrator.hasVibrator()) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createWaveform(new long[]{0, 30, 50, 30}, -1));
+            } else {
+                vibrator.vibrate(new long[]{0, 30, 50, 30}, -1);
+            }
+        }
+        showVoiceStatus("\uD83C\uDF10  " + label);
+        // Clear status after 1.5s
+        mHandler.postDelayed(this::clearVoiceStatus, 1500);
     }
 
     // --- End voice input ---

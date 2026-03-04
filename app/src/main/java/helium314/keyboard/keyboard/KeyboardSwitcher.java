@@ -43,7 +43,9 @@ import helium314.keyboard.latin.RichInputMethodSubtype;
 import helium314.keyboard.latin.WordComposer;
 import helium314.keyboard.latin.settings.Settings;
 import helium314.keyboard.latin.settings.SettingsValues;
+import helium314.keyboard.latin.suggestions.FeatureDrawerView;
 import helium314.keyboard.latin.suggestions.SuggestionStripView;
+import helium314.keyboard.latin.voice.VoiceInputModeView;
 import helium314.keyboard.latin.utils.CapsModeUtils;
 import helium314.keyboard.latin.utils.KtxKt;
 import helium314.keyboard.latin.utils.LanguageOnSpacebarUtils;
@@ -68,6 +70,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private SuggestionStripView mSuggestionStripView;
     private FrameLayout mStripContainer;
     private ClipboardHistoryView mClipboardHistoryView;
+    private FeatureDrawerView mFeatureDrawerView;
+    private VoiceInputModeView mVoiceInputModeView;
     private TextView mFakeToastView;
     private LatinIME mLatinIME;
     private RichInputMethodManager mRichImm;
@@ -335,6 +339,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mSuggestionStripView.setVisibility(stripVisibility);
         mClipboardHistoryView.setVisibility(View.GONE);
         mClipboardHistoryView.stopClipboardHistory();
+        if (mFeatureDrawerView != null) mFeatureDrawerView.setVisibility(View.GONE);
+        if (mVoiceInputModeView != null) mVoiceInputModeView.setVisibility(View.GONE);
     }
 
     // Implements {@link KeyboardState.SwitchActions}.
@@ -378,6 +384,78 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mClipboardHistoryView.startClipboardHistory(mLatinIME.getClipboardHistoryManager(), mKeyboardView.getKeyVisualAttribute(),
                 mLatinIME.getCurrentInputEditorInfo(), mLatinIME.mKeyboardActionListener);
         mClipboardHistoryView.setVisibility(View.VISIBLE);
+    }
+
+    /** Toggle the Samsung-style 4x3 feature drawer. */
+    public void toggleFeatureDrawer() {
+        if (mFeatureDrawerView == null) return;
+        final boolean isShowing = mFeatureDrawerView.getVisibility() == View.VISIBLE;
+        if (isShowing) {
+            // Hide drawer, restore main keyboard
+            mFeatureDrawerView.setVisibility(View.GONE);
+            mKeyboardView.setVisibility(View.VISIBLE);
+            mSuggestionStripView.setVisibility(View.VISIBLE);
+        } else {
+            // Show drawer, hide main keyboard
+            mMainKeyboardFrame.setVisibility(View.VISIBLE);
+            mKeyboardView.setVisibility(View.GONE);
+            mEmojiPalettesView.setVisibility(View.GONE);
+            mClipboardHistoryView.setVisibility(View.GONE);
+            mSuggestionStripView.setVisibility(View.GONE);
+            mStripContainer.setVisibility(getSecondaryStripVisibility());
+            mEmojiTabStripView.setVisibility(View.GONE);
+            mClipboardStripScrollView.setVisibility(View.GONE);
+
+            // Populate and theme the grid
+            mFeatureDrawerView.populateGrid(Settings.getValues().mColors);
+            mFeatureDrawerView.setCodeInputListener(code -> {
+                // Close drawer first, then dispatch the action
+                mFeatureDrawerView.setVisibility(View.GONE);
+                mKeyboardView.setVisibility(View.VISIBLE);
+                mSuggestionStripView.setVisibility(View.VISIBLE);
+                mLatinIME.mKeyboardActionListener.onCodeInput(code,
+                    helium314.keyboard.latin.common.Constants.SUGGESTION_STRIP_COORDINATE,
+                    helium314.keyboard.latin.common.Constants.SUGGESTION_STRIP_COORDINATE, false);
+            });
+            mFeatureDrawerView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public boolean isShowingFeatureDrawer() {
+        return mFeatureDrawerView != null && mFeatureDrawerView.isShown();
+    }
+
+    /** Enter minimal voice keyboard mode — large mic, status, no QWERTY. */
+    public void setVoiceInputMode() {
+        if (mVoiceInputModeView == null) return;
+        mMainKeyboardFrame.setVisibility(View.VISIBLE);
+        mKeyboardView.setVisibility(View.GONE);
+        mEmojiPalettesView.setVisibility(View.GONE);
+        mClipboardHistoryView.setVisibility(View.GONE);
+        if (mFeatureDrawerView != null) mFeatureDrawerView.setVisibility(View.GONE);
+        mSuggestionStripView.setVisibility(View.GONE);
+        mStripContainer.setVisibility(getSecondaryStripVisibility());
+        mEmojiTabStripView.setVisibility(View.GONE);
+        mClipboardStripScrollView.setVisibility(View.GONE);
+
+        mVoiceInputModeView.applyTheme(Settings.getValues().mColors);
+        mVoiceInputModeView.setVisibility(View.VISIBLE);
+    }
+
+    /** Exit minimal voice mode, return to normal keyboard. */
+    public void exitVoiceInputMode() {
+        if (mVoiceInputModeView == null) return;
+        mVoiceInputModeView.setVisibility(View.GONE);
+        mKeyboardView.setVisibility(View.VISIBLE);
+        mSuggestionStripView.setVisibility(View.VISIBLE);
+    }
+
+    public boolean isShowingVoiceInputMode() {
+        return mVoiceInputModeView != null && mVoiceInputModeView.isShown();
+    }
+
+    public VoiceInputModeView getVoiceInputModeView() {
+        return mVoiceInputModeView;
     }
 
     @Override
@@ -711,6 +789,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mMainKeyboardFrame = mCurrentInputView.findViewById(R.id.main_keyboard_frame);
         mEmojiPalettesView = mCurrentInputView.findViewById(R.id.emoji_palettes_view);
         mClipboardHistoryView = mCurrentInputView.findViewById(R.id.clipboard_history_view);
+        mFeatureDrawerView = mCurrentInputView.findViewById(R.id.feature_drawer_view);
+        mVoiceInputModeView = mCurrentInputView.findViewById(R.id.voice_input_mode_view);
         mFakeToastView = mCurrentInputView.findViewById(R.id.fakeToast);
 
         mKeyboardViewWrapper = mCurrentInputView.findViewById(R.id.keyboard_view_wrapper);

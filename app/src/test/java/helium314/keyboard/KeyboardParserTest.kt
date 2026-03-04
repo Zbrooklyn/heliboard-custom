@@ -321,7 +321,8 @@ f""", // no newline at the end
         assertIsExpected("""[[{ "code":   57, "label": "9", "type": "numeric" }]]""", Expected(57, "9"))
         assertIsExpected("""[[{ "code":   -7, "label": "delete", "type": "enter_editing" }]]""", Expected(-7, icon = "delete_key"))
         // -207 gets translated to -202 in Int.toKeyEventCode
-        assertIsExpected("""[[{ "code": -207, "label": "view_phone2", "type": "system_gui" }]]""", Expected(-202, "?123"))
+        // WhisperClick uses Samsung-style "!#1" symbol label
+        assertIsExpected("""[[{ "code": -207, "label": "view_phone2", "type": "system_gui" }]]""", Expected(-202, "!#1"))
     }
 
     @Test fun spaceKey() {
@@ -438,20 +439,22 @@ f""", // no newline at the end
         val editorInfo = EditorInfo()
         val subtype = SubtypeUtilsAdditional.createEmojiCapableAdditionalSubtype(Locale.ENGLISH, "dvorak", true)
         val (_, keys) = buildKeyboard(editorInfo, subtype, KeyboardId.ELEMENT_ALPHABET)
-        assertEquals(keys.size, 4)
+        // WhisperClick default: number row enabled → 5 rows (number + 4 dvorak rows)
+        assertEquals(keys.size, 5)
     }
 
     @Test fun `de_DE has extra keys`() {
         val editorInfo = EditorInfo()
         val subtype = SubtypeUtilsAdditional.createEmojiCapableAdditionalSubtype(Locale.GERMANY, "qwertz+", true)
         val (_, keys) = buildKeyboard(editorInfo, subtype, KeyboardId.ELEMENT_ALPHABET)
-        assertEquals(11, keys[0].size)
+        // WhisperClick default: number row enabled → letter rows shifted to indices 1-3
         assertEquals(11, keys[1].size)
-        assertEquals(10, keys[2].size)
+        assertEquals(11, keys[2].size)
+        assertEquals(10, keys[3].size)
         val (_, keys2) = buildKeyboard(editorInfo, subtype, KeyboardId.ELEMENT_ALPHABET_AUTOMATIC_SHIFTED)
-        assertEquals(11, keys2[0].size)
         assertEquals(11, keys2[1].size)
-        assertEquals(10, keys2[2].size)
+        assertEquals(11, keys2[2].size)
+        assertEquals(10, keys2[3].size)
     }
 
     @Test fun `popup key count does not depend on shift for (for simple layout)`() {
@@ -490,7 +493,8 @@ f""", // no newline at the end
             f blah
             tab timestamp
     """).map { row -> row.mapNotNull { it.compute(params)?.toKeyParams(params) } }.flatten()
-        assertEquals("?123", keys[0].mPopupKeys?.first()?.mLabel)
+        // WhisperClick uses Samsung-style "!#1" symbol label instead of "?123"
+        assertEquals("!#1", keys[0].mPopupKeys?.first()?.mLabel)
         assertEquals(KeyCode.SYMBOL, keys[0].mPopupKeys?.first()?.mCode)
         assertEquals("ESC", keys[1].mPopupKeys?.first()?.mLabel)
         assertEquals(KeyCode.ESCAPE, keys[1].mPopupKeys?.first()?.mCode)

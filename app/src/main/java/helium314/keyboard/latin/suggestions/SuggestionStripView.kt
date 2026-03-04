@@ -129,14 +129,14 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         LinearLayout.LayoutParams.MATCH_PARENT,
         1f // equal weight — distributes toolbar keys evenly across full width
     )
-    // Samsung-style pill layout params with margin between icons
-    private val toolbarPillLayoutParams get() = LinearLayout.LayoutParams(
+    // Samsung-style circular layout params — equal weight with margin for circle shape
+    private val toolbarCircleLayoutParams get() = LinearLayout.LayoutParams(
         0,
         LinearLayout.LayoutParams.MATCH_PARENT,
         1f
     ).apply {
-        val hMargin = (3 * density).toInt()
-        val vMargin = (4 * density).toInt()
+        val hMargin = (2 * density).toInt()
+        val vMargin = (3 * density).toInt()
         setMargins(hMargin, vMargin, hMargin, vMargin)
     }
 
@@ -162,21 +162,37 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val mToolbarMode = if (isGone) ToolbarMode.HIDDEN else Settings.getValues().mToolbarMode
 
         // toolbar keys setup — always populate toolbar (2-row layout: toolbar is always visible on top)
-        val toolbarPillColor = colors.get(ColorType.KEY_BACKGROUND)
+        val toolbarCircleColor = colors.get(ColorType.KEY_BACKGROUND)
         if (mToolbarMode != ToolbarMode.HIDDEN) {
             for (key in getEnabledToolbarKeys(context.prefs())) {
                 val button = createToolbarKey(context, key)
-                button.layoutParams = toolbarPillLayoutParams
+                button.layoutParams = toolbarCircleLayoutParams
                 setupKey(button, colors)
-                // Samsung-style pill background behind each toolbar icon
-                val pill = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    cornerRadius = 100f * density // large radius for full pill
-                    setColor(toolbarPillColor)
+                // Samsung-style circular background behind each toolbar icon
+                val circle = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(toolbarCircleColor)
                 }
-                button.background = pill
+                button.background = circle
                 toolbar.addView(button)
             }
+            // "..." overflow button — opens feature drawer
+            val overflowButton = ImageButton(context, null, R.attr.suggestionWordStyle)
+            overflowButton.scaleType = android.widget.ImageView.ScaleType.CENTER
+            overflowButton.tag = OVERFLOW_TAG
+            overflowButton.contentDescription = resources.getString(R.string.more_keys_strip_description)
+            overflowButton.setImageResource(R.drawable.ic_more_horiz)
+            overflowButton.layoutParams = toolbarCircleLayoutParams
+            val overflowCircle = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(toolbarCircleColor)
+            }
+            overflowButton.background = overflowCircle
+            colors.setColor(overflowButton, ColorType.TOOL_BAR_KEY)
+            overflowButton.setOnClickListener {
+                listener.onCodeInput(KeyCode.TOGGLE_ACTIONS_OVERFLOW, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false)
+            }
+            toolbar.addView(overflowButton)
         }
         // Samsung-style: single row — toolbar visible by default, suggestions swap in when available
         toolbarContainer.visibility = VISIBLE
@@ -586,6 +602,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         @JvmField
         var DEBUG_SUGGESTIONS = false
         private const val DEBUG_INFO_TEXT_SIZE_IN_DIP = 6.5f
+        private const val OVERFLOW_TAG = "overflow_dots"
         private val TAG = SuggestionStripView::class.java.simpleName
     }
 }

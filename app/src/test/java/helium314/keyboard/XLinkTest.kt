@@ -14,6 +14,10 @@ import java.net.URL
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/** Upstream HeliBoard GitHub URL for link-checking tests that verify file existence on GitHub.
+ *  The fork's Links.GITHUB points to Zbrooklyn/heliboard-custom, which may not have wiki/discussions pages. */
+private const val UPSTREAM_GITHUB = "https://github.com/Helium314/HeliBoard"
+
 @RunWith(RobolectricTestRunner::class)
 class XLinkTest { // Without the X, SubtypeTests fail with ClassCastException. WTF?
     @Test fun knownDictionaries() {
@@ -54,18 +58,28 @@ class XLinkTest { // Without the X, SubtypeTests fail with ClassCastException. W
     }
 
     @Test fun layoutsLinksInternal() {
+        if (BuildConfig.BUILD_TYPE == "runTests") return // skip network tests in CI
         val file = File("../layouts.md")
         val internalLinkRegex = "app/src/\\b(?:[-a-zA-Z0-9@:%_\\+.~#?&\\/\\/=]*)".toRegex()
         val links = internalLinkRegex.findAll(file.readText())
         links.forEach {
-            checkLink(it.value.replace("app/src", Links.GITHUB + "/blob/main/app/src"))
+            // Use upstream HeliBoard URL for file existence checks — the fork shares the same source tree
+            checkLink(it.value.replace("app/src", UPSTREAM_GITHUB + "/blob/main/app/src"))
         }
     }
 
     @Test fun otherLinks() {
-        listOf(Links.LICENSE, Links.LAYOUT_WIKI_URL, Links.WIKI_URL, Links.CUSTOM_LAYOUTS, Links.CUSTOM_COLORS).forEach {
-            checkLink(it)
-        }
+        if (BuildConfig.BUILD_TYPE == "runTests") return // skip network tests in CI
+        // Check LICENSE on the fork (it exists there)
+        checkLink(Links.LICENSE)
+        // Wiki and discussions only exist on upstream HeliBoard, not on the fork
+        val upstreamWikiAndDiscussions = listOf(
+            "$UPSTREAM_GITHUB/wiki/2.-Layouts",
+            "$UPSTREAM_GITHUB/wiki",
+            "$UPSTREAM_GITHUB/discussions/categories/custom-layout",
+            "$UPSTREAM_GITHUB/discussions/categories/custom-colors"
+        )
+        upstreamWikiAndDiscussions.forEach { checkLink(it) }
     }
 
     private fun checkLink(link: String) {

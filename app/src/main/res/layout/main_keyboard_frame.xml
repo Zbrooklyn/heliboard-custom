@@ -35,6 +35,18 @@
         <include
             android:id="@+id/clipboard_history_view"
             layout="@layout/clipboard_history_view" />
+        <helium314.keyboard.latin.suggestions.FeatureDrawerView
+            android:id="@+id/feature_drawer_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:padding="8dp" />
+        <helium314.keyboard.latin.voice.VoiceInputModeView
+            android:id="@+id/voice_input_mode_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:padding="16dp" />
 
         <ImageButton
             android:id="@+id/btn_stop_one_handed_mode"
