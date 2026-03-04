@@ -144,6 +144,13 @@ fun upgradeToolbarPrefs(prefs: SharedPreferences) {
     upgradeToolbarPref(prefs, Settings.PREF_TOOLBAR_KEYS, defaultToolbarPref)
     upgradeToolbarPref(prefs, Settings.PREF_PINNED_TOOLBAR_KEYS, defaultPinnedToolbarPref)
     upgradeToolbarPref(prefs, Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, defaultClipboardToolbarPref)
+    // One-time migration: force WhisperClick clipboard toolbar order
+    if (!prefs.getBoolean("whisperclick_clipboard_toolbar_migrated", false)) {
+        prefs.edit {
+            putString(Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, defaultClipboardToolbarPref)
+            putBoolean("whisperclick_clipboard_toolbar_migrated", true)
+        }
+    }
 }
 
 private fun upgradeToolbarPref(prefs: SharedPreferences, pref: String, default: String) {

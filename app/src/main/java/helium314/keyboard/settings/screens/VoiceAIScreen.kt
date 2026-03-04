@@ -36,6 +36,7 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.latin.ai.ApiKeyValidator
 import helium314.keyboard.latin.voice.ActivityLog
 import helium314.keyboard.latin.voice.ModelManager
 import helium314.keyboard.settings.SearchSettingsScreen
@@ -64,6 +65,7 @@ fun VoiceAIScreen(onClickBack: () -> Unit) {
         Settings.PREF_AI_PROVIDER,
         Settings.PREF_GEMINI_API_KEY,
         Settings.PREF_OPENAI_API_KEY,
+        SettingsWithoutKey.TEST_API_KEY,
         // Diagnostics section
         R.string.voice_ai_category_diagnostics,
         SettingsWithoutKey.VOICE_BENCHMARK,
@@ -111,6 +113,9 @@ fun createVoiceAISettings(context: Context) = listOf(
     },
     Setting(context, Settings.PREF_OPENAI_API_KEY, R.string.voice_ai_openai_key) {
         TextInputPreference(setting = it, default = Defaults.PREF_OPENAI_API_KEY)
+    },
+    Setting(context, SettingsWithoutKey.TEST_API_KEY, R.string.voice_ai_test_api_key) {
+        TestApiKeyPreference()
     },
     Setting(context, SettingsWithoutKey.VOICE_BENCHMARK, R.string.voice_ai_benchmark) {
         VoiceBenchmarkPreference()
@@ -169,6 +174,11 @@ private fun VoiceBenchmarkPreference() {
                 }) {
                     Text(stringResource(R.string.voice_ai_benchmark_copy))
                 }
+                TextButton(onClick = {
+                    shareText(context, "WhisperClick Benchmark", benchmarkResult!!)
+                }) {
+                    Text(stringResource(R.string.voice_ai_share))
+                }
             }
         }
     }
@@ -219,6 +229,13 @@ private fun ActivityLogPreference() {
                     Text(stringResource(R.string.voice_ai_log_copy))
                 }
                 TextButton(onClick = {
+                    if (logText.isNotEmpty()) {
+                        shareText(context, "WhisperClick Activity Log", logText)
+                    }
+                }) {
+                    Text(stringResource(R.string.voice_ai_share))
+                }
+                TextButton(onClick = {
                     ActivityLog.clear()
                     logText = ""
                     Toast.makeText(context, R.string.voice_ai_log_cleared, Toast.LENGTH_SHORT).show()
@@ -227,6 +244,59 @@ private fun ActivityLogPreference() {
                 }
             }
         }
+    }
+}
+
+private fun shareText(context: Context, subject: String, text: String) {
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
+        putExtra(android.content.Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(android.content.Intent.createChooser(intent, subject))
+}
+
+@Composable
+private fun TestApiKeyPreference() {
+    val context = LocalContext.current
+    var testResult by remember { mutableStateOf<String?>(null) }
+    var isTesting by remember { mutableStateOf(false) }
+
+    Column {
+        Preference(
+            name = stringResource(R.string.voice_ai_test_api_key),
+            description = when {
+                isTesting -> stringResource(R.string.voice_ai_test_api_key_testing)
+                testResult != null -> testResult!!
+                else -> stringResource(R.string.voice_ai_test_api_key_description)
+            },
+            onClick = {
+                if (isTesting) return@Preference
+                isTesting = true
+                testResult = null
+                val prefs = context.prefs()
+                val provider = prefs.getString(Settings.PREF_AI_PROVIDER, Defaults.PREF_AI_PROVIDER) ?: "gemini"
+                val apiKey = if (provider == "openai")
+                    prefs.getString(Settings.PREF_OPENAI_API_KEY, "") ?: ""
+                else
+                    prefs.getString(Settings.PREF_GEMINI_API_KEY, "") ?: ""
+
+                Thread {
+                    val result = kotlinx.coroutines.runBlocking {
+                        if (provider == "openai") ApiKeyValidator.validateOpenAI(apiKey)
+                        else ApiKeyValidator.validateGemini(apiKey)
+                    }
+                    val message = when (result) {
+                        is ApiKeyValidator.Result.Valid -> context.getString(R.string.voice_ai_test_api_key_valid)
+                        is ApiKeyValidator.Result.Invalid -> result.message
+                    }
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        testResult = message
+                        isTesting = false
+                    }
+                }.start()
+            }
+        )
     }
 }
 

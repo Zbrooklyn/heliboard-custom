@@ -149,6 +149,16 @@ public class LatinIME extends InputMethodService implements
 
     private RichInputMethodManager mRichImm;
     private VoiceInputManager mVoiceInputManager;
+    private long mRecordingStartTime;
+    private final Runnable mRecordingTimerRunnable = new Runnable() {
+        @Override public void run() {
+            if (mVoiceInputManager == null) return;
+            long elapsed = (System.currentTimeMillis() - mRecordingStartTime) / 1000;
+            showVoiceStatusTappable("\uD83C\uDFA4  Listening... " + elapsed + "s  (tap to stop)",
+                () -> { if (mVoiceInputManager != null) mVoiceInputManager.toggleRecording(); });
+            mHandler.postDelayed(this, 1000);
+        }
+    };
 
     // Magic Rewrite state
     private String mOriginalRewriteText;
@@ -1455,19 +1465,24 @@ public class LatinIME extends InputMethodService implements
             },
             state -> {  // onStateChange
                 ActivityLog.INSTANCE.log("Voice", "State: " + state.name());
+                // Haptic feedback on state changes
+                AudioAndHapticFeedbackManager.getInstance().vibrate(30);
                 switch (state) {
                     case LISTENING:
-                        showVoiceStatusTappable("\uD83C\uDFA4  Listening... tap here to stop",
-                            () -> { if (mVoiceInputManager != null) mVoiceInputManager.toggleRecording(); });
+                        mRecordingStartTime = System.currentTimeMillis();
+                        startRecordingTimer();
                         break;
                     case TRANSCRIBING:
+                        stopRecordingTimer();
                         showVoiceStatus("\u23F3  Transcribing...");
                         break;
                     case ERROR:
+                        stopRecordingTimer();
                         clearVoiceStatus();
                         Toast.makeText(this, "Voice input error", Toast.LENGTH_SHORT).show();
                         break;
                     default: // IDLE
+                        stopRecordingTimer();
                         clearVoiceStatus();
                         break;
                 }
@@ -1478,6 +1493,15 @@ public class LatinIME extends InputMethodService implements
         if (modelFile != null) {
             mVoiceInputManager.loadModel(modelFile.getAbsolutePath());
         }
+    }
+
+    private void startRecordingTimer() {
+        mHandler.removeCallbacks(mRecordingTimerRunnable);
+        mRecordingTimerRunnable.run();
+    }
+
+    private void stopRecordingTimer() {
+        mHandler.removeCallbacks(mRecordingTimerRunnable);
     }
 
     private void showVoiceStatus(String message) {
