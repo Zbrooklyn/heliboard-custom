@@ -44,6 +44,8 @@
     <string name="settings_screen_advanced">Advanced</string>
     <!-- Settings screen title for voice and AI settings -->
     <string name="settings_screen_voice_ai">Voice &amp; AI</string>
+    <string name="settings_category_whisperclick">WhisperClick</string>
+    <string name="settings_category_classic">Classic Settings</string>
     <string name="voice_ai_stt_mode">Speech-to-text mode</string>
     <string name="voice_ai_stt_mode_summary">Choose between local (offline) or cloud (OpenAI) transcription</string>
     <string name="voice_ai_stt_local">Local (offline)</string>

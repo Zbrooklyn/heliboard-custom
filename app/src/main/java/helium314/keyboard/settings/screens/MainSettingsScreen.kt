@@ -25,6 +25,7 @@ import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.Theme
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.preferences.Preference
+import helium314.keyboard.settings.preferences.PreferenceCategory
 import helium314.keyboard.settings.previewDark
 import helium314.keyboard.settings.screens.gesturedata.END_DATE_EPOCH_MILLIS
 import helium314.keyboard.settings.screens.gesturedata.TWO_WEEKS_IN_MILLIS
@@ -55,7 +56,16 @@ fun MainSettingsScreen(
             Column(
                 Modifier.verticalScroll(rememberScrollState()).then(Modifier.padding(innerPadding))
             ) {
-                // Order: Appearance → Language → Typing → Voice & AI → Toolbar → Swipe → Input → Advanced → About
+                // ── WhisperClick (new/redesigned settings) ──
+                PreferenceCategory(stringResource(R.string.settings_category_whisperclick))
+                Preference(
+                    name = stringResource(R.string.settings_screen_voice_ai),
+                    onClick = onClickVoiceAI,
+                    icon = R.drawable.ic_rewrite
+                ) { NextScreenIcon() }
+
+                // ── Classic Settings (legacy HeliBoard) ──
+                PreferenceCategory(stringResource(R.string.settings_category_classic))
                 Preference(
                     name = stringResource(R.string.settings_screen_appearance),
                     onClick = onClickAppearance,
@@ -71,11 +81,6 @@ fun MainSettingsScreen(
                     name = stringResource(R.string.settings_screen_correction),
                     onClick = onClickTextCorrection,
                     icon = R.drawable.ic_settings_correction
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_voice_ai),
-                    onClick = onClickVoiceAI,
-                    icon = R.drawable.ic_rewrite
                 ) { NextScreenIcon() }
                 Preference(
                     name = stringResource(R.string.settings_screen_toolbar),
