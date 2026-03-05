@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import com.whispercpp.whisper.WhisperContext
 import helium314.keyboard.latin.ai.WhisperCloudClient
 import helium314.keyboard.latin.settings.Defaults
@@ -15,6 +16,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import java.io.File
 
 class VoiceInputManager(
@@ -37,6 +40,11 @@ class VoiceInputManager(
         fun onPartialResult(text: String)
     }
 
+    /** Callback for errors that should show specific messages (not generic "Voice input error"). */
+    fun interface ErrorDetailCallback {
+        fun onErrorDetail(message: String)
+    }
+
     private val recorder = Recorder()
     @Volatile
     private var whisperContext: WhisperContext? = null
@@ -47,7 +55,18 @@ class VoiceInputManager(
     // Google STT client — lazily initialized
     private var googleSttClient: GoogleSttClient? = null
 
+    /** Optional callback for detailed error messages (set by LatinIME). */
+    var onErrorDetail: ErrorDetailCallback? = null
+
     val currentState: VoiceState get() = state
+
+    companion object {
+        private const val TAG = "VoiceInputManager"
+        /** Max recording duration in milliseconds (5 minutes). */
+        private const val MAX_RECORDING_DURATION_MS = 5 * 60 * 1000L
+        /** Max local transcription timeout in milliseconds (60 seconds). */
+        private const val LOCAL_TRANSCRIBE_TIMEOUT_MS = 60_000L
+    }
 
     fun loadModel(modelPath: String) {
         scope.launch {
@@ -138,6 +157,18 @@ class VoiceInputManager(
                 }
             }
         }
+        // Auto-stop after max recording duration (5 minutes)
+        mainHandler.postDelayed(maxRecordingRunnable, MAX_RECORDING_DURATION_MS)
+    }
+
+    private val maxRecordingRunnable = Runnable {
+        if (state == VoiceState.LISTENING && !isGoogleMode()) {
+            Log.d(TAG, "Max recording duration reached (${MAX_RECORDING_DURATION_MS / 1000}s), auto-stopping")
+            mainHandler.post {
+                Toast.makeText(context, "Max recording length reached", Toast.LENGTH_SHORT).show()
+            }
+            stopAndTranscribe()
+        }
     }
 
     /** Start Google SpeechRecognizer in continuous mode. Must run on main thread. */
@@ -182,6 +213,9 @@ class VoiceInputManager(
     }
 
     private fun stopAndTranscribe() {
+        // Cancel the max recording timer
+        mainHandler.removeCallbacks(maxRecordingRunnable)
+
         val mode = getSttMode()
         if (mode == "google") {
             stopGoogleStt()
@@ -208,26 +242,18 @@ class VoiceInputManager(
                 val samples = recorder.stopRecording()
                 if (samples.isEmpty()) {
                     withContext(Dispatchers.Main) {
+                        // Show "No speech detected" instead of silently swallowing
+                        Toast.makeText(context, "No speech detected", Toast.LENGTH_SHORT).show()
                         state = VoiceState.IDLE
                         onStateChange.onStateChange(state)
                     }
                     return@launch
                 }
 
-                val text = if (isCloudMode()) {
+                if (isCloudMode()) {
                     transcribeCloud(samples)
                 } else {
                     transcribeLocal(samples)
-                }
-
-                withContext(Dispatchers.Main) {
-                    if (text.isNullOrBlank()) {
-                        onResult.onResult("")
-                    } else {
-                        onResult.onResult(text.trim())
-                    }
-                    state = VoiceState.IDLE
-                    onStateChange.onStateChange(state)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Transcription failed", e)
@@ -239,25 +265,71 @@ class VoiceInputManager(
         }
     }
 
-    /** Transcribe using local whisper.cpp model. */
-    private suspend fun transcribeLocal(samples: ShortArray): String? {
+    /** Transcribe using local whisper.cpp model with timeout. */
+    private suspend fun transcribeLocal(samples: ShortArray) {
         val floats = FloatArray(samples.size) { samples[it] / 32768.0f }
-        return whisperContext?.transcribeData(floats, printTimestamp = false)
-    }
-
-    /** Transcribe using OpenAI Whisper cloud API. */
-    private suspend fun transcribeCloud(samples: ShortArray): String? {
-        val prefs = context.prefs()
-        val apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, Defaults.PREF_OPENAI_API_KEY)
-        if (apiKey.isNullOrEmpty()) {
-            Log.e(TAG, "Cloud STT: No OpenAI API key configured")
+        try {
+            val text = withTimeout(LOCAL_TRANSCRIBE_TIMEOUT_MS) {
+                whisperContext?.transcribeData(floats, printTimestamp = false)
+            }
             withContext(Dispatchers.Main) {
+                if (text.isNullOrBlank()) {
+                    onResult.onResult("")
+                } else {
+                    onResult.onResult(text.trim())
+                }
+                state = VoiceState.IDLE
+                onStateChange.onStateChange(state)
+            }
+        } catch (e: TimeoutCancellationException) {
+            Log.e(TAG, "Local transcription timed out after ${LOCAL_TRANSCRIBE_TIMEOUT_MS / 1000}s")
+            withContext(Dispatchers.Main) {
+                onErrorDetail?.onErrorDetail("Transcription timed out — try a shorter recording")
                 state = VoiceState.ERROR
                 onStateChange.onStateChange(state)
             }
-            return null
         }
-        return WhisperCloudClient.transcribe(apiKey, samples)
+    }
+
+    /** Transcribe using OpenAI Whisper cloud API with proper error reporting. */
+    private suspend fun transcribeCloud(samples: ShortArray) {
+        val prefs = context.prefs()
+        val apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, Defaults.PREF_OPENAI_API_KEY)
+        // API key already validated in handleVoiceInput() — but guard just in case
+        if (apiKey.isNullOrEmpty()) {
+            withContext(Dispatchers.Main) {
+                onErrorDetail?.onErrorDetail("Set your OpenAI API key in Voice & AI settings")
+                state = VoiceState.ERROR
+                onStateChange.onStateChange(state)
+            }
+            return
+        }
+
+        val result = WhisperCloudClient.transcribe(apiKey, samples)
+        withContext(Dispatchers.Main) {
+            when (result) {
+                is WhisperCloudClient.TranscribeResult.Success -> {
+                    onResult.onResult(result.text)
+                    state = VoiceState.IDLE
+                    onStateChange.onStateChange(state)
+                }
+                is WhisperCloudClient.TranscribeResult.Empty -> {
+                    onResult.onResult("")
+                    state = VoiceState.IDLE
+                    onStateChange.onStateChange(state)
+                }
+                is WhisperCloudClient.TranscribeResult.ApiError -> {
+                    onErrorDetail?.onErrorDetail(result.message)
+                    state = VoiceState.ERROR
+                    onStateChange.onStateChange(state)
+                }
+                is WhisperCloudClient.TranscribeResult.NetworkError -> {
+                    onErrorDetail?.onErrorDetail(result.message)
+                    state = VoiceState.ERROR
+                    onStateChange.onStateChange(state)
+                }
+            }
+        }
     }
 
     /** Cycle through STT modes: local → cloud → google → local. Returns the new mode name. */
@@ -284,6 +356,7 @@ class VoiceInputManager(
     }
 
     fun release() {
+        mainHandler.removeCallbacks(maxRecordingRunnable)
         // Cancel Google STT if active
         googleSttClient?.cancel()
         googleSttClient = null
@@ -300,9 +373,5 @@ class VoiceInputManager(
                 } catch (_: Exception) { }
             }
         }
-    }
-
-    companion object {
-        private const val TAG = "VoiceInputManager"
     }
 }

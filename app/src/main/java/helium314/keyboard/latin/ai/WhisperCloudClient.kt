@@ -18,13 +18,21 @@ object WhisperCloudClient {
     private const val TAG = "WhisperCloudClient"
     private const val API_URL = "https://api.openai.com/v1/audio/transcriptions"
 
+    /** Result of a cloud transcription attempt. */
+    sealed class TranscribeResult {
+        data class Success(val text: String) : TranscribeResult()
+        data class Empty(val message: String = "No speech detected") : TranscribeResult()
+        data class ApiError(val code: Int, val message: String) : TranscribeResult()
+        data class NetworkError(val message: String) : TranscribeResult()
+    }
+
     /**
      * Transcribe raw PCM audio samples using OpenAI Whisper API.
      * @param apiKey OpenAI API key
      * @param samples 16-bit PCM samples at 16 kHz mono
-     * @return transcribed text, or null on failure
+     * @return TranscribeResult with success text or specific error info
      */
-    suspend fun transcribe(apiKey: String, samples: ShortArray): String? = withContext(Dispatchers.IO) {
+    suspend fun transcribe(apiKey: String, samples: ShortArray): TranscribeResult = withContext(Dispatchers.IO) {
         val wavBytes = WavEncoder.encodeWaveBytes(samples)
         val boundary = "----HeliBoard${System.currentTimeMillis()}"
 
@@ -63,17 +71,32 @@ object WhisperCloudClient {
             if (responseCode == 200) {
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(response)
-                json.getString("text").trim().ifEmpty { null }
+                val text = json.getString("text").trim()
+                if (text.isEmpty()) TranscribeResult.Empty()
+                else TranscribeResult.Success(text)
             } else {
                 val errorBody = try {
                     connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "no body"
                 } catch (_: Exception) { "unreadable" }
                 Log.e(TAG, "HTTP $responseCode: $errorBody")
-                null
+
+                val userMessage = when (responseCode) {
+                    401 -> "Invalid OpenAI API key"
+                    429 -> "API quota exceeded — check your OpenAI billing"
+                    500, 502, 503 -> "OpenAI server error — try again"
+                    else -> "Cloud transcription failed (HTTP $responseCode)"
+                }
+                TranscribeResult.ApiError(responseCode, userMessage)
             }
+        } catch (e: java.net.SocketTimeoutException) {
+            Log.e(TAG, "Transcription timed out: ${e.message}")
+            TranscribeResult.NetworkError("Request timed out — check your connection")
+        } catch (e: java.net.UnknownHostException) {
+            Log.e(TAG, "DNS resolution failed: ${e.message}")
+            TranscribeResult.NetworkError("No internet connection")
         } catch (e: Exception) {
             Log.e(TAG, "Transcription failed: ${e.javaClass.simpleName}: ${e.message}")
-            null
+            TranscribeResult.NetworkError("Network error: ${e.javaClass.simpleName}")
         } finally {
             connection.disconnect()
         }

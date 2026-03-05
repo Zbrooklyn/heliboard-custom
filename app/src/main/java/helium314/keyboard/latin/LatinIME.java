@@ -165,6 +165,10 @@ public class LatinIME extends InputMethodService implements
 
     // Voice transcription undo state
     private String mLastTranscribedText;
+    // Detailed error message from VoiceInputManager (null = use generic)
+    private String mVoiceErrorDetail;
+    // Transcribing timer state
+    private long mTranscribingStartTime;
 
     // Magic Rewrite state
     private String mOriginalRewriteText;
@@ -1541,17 +1545,27 @@ public class LatinIME extends InputMethodService implements
                         break;
                     case TRANSCRIBING:
                         stopRecordingTimer();
-                        showVoiceStatus(getString(R.string.voice_transcribing_icon));
+                        mTranscribingStartTime = System.currentTimeMillis();
+                        startTranscribingTimer();
                         break;
                     case ERROR:
                         stopRecordingTimer();
+                        stopTranscribingTimer();
                         clearVoiceStatus();
-                        Toast.makeText(this, getString(R.string.voice_input_error), Toast.LENGTH_SHORT).show();
+                        // Show specific error message if available, otherwise generic
+                        String errorMsg = mVoiceErrorDetail;
+                        mVoiceErrorDetail = null;
+                        if (errorMsg != null && !errorMsg.isEmpty()) {
+                            Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(this, getString(R.string.voice_input_error), Toast.LENGTH_SHORT).show();
+                        }
                         // Exit voice mode after brief delay so user sees error
                         mHandler.postDelayed(() -> mKeyboardSwitcher.exitVoiceInputMode(), 1500);
                         break;
                     default: // IDLE
                         stopRecordingTimer();
+                        stopTranscribingTimer();
                         clearVoiceStatus();
                         // Exit voice mode when done
                         mKeyboardSwitcher.exitVoiceInputMode();
@@ -1565,6 +1579,10 @@ public class LatinIME extends InputMethodService implements
                 }
             }
         );
+        // Wire up detailed error callback — shows specific messages instead of generic "Voice input error"
+        mVoiceInputManager.setOnErrorDetail(message -> {
+            mVoiceErrorDetail = message;
+        });
         // Load model if available
         java.io.File modelFile = mVoiceInputManager.getModelFile();
         if (modelFile != null) {
@@ -1579,6 +1597,23 @@ public class LatinIME extends InputMethodService implements
 
     private void stopRecordingTimer() {
         mHandler.removeCallbacks(mRecordingTimerRunnable);
+    }
+
+    private final Runnable mTranscribingTimerRunnable = new Runnable() {
+        @Override public void run() {
+            long elapsed = (System.currentTimeMillis() - mTranscribingStartTime) / 1000;
+            showVoiceStatus("\u23F3  Transcribing\u2026 " + elapsed + "s");
+            mHandler.postDelayed(this, 1000);
+        }
+    };
+
+    private void startTranscribingTimer() {
+        mHandler.removeCallbacks(mTranscribingTimerRunnable);
+        mTranscribingTimerRunnable.run();
+    }
+
+    private void stopTranscribingTimer() {
+        mHandler.removeCallbacks(mTranscribingTimerRunnable);
     }
 
     private void showVoiceStatus(String message) {

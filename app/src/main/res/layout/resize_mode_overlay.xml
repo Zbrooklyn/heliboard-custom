@@ -2,15 +2,14 @@
 <!--
     Samsung-style keyboard resize mode overlay.
     Shows blue border, center drag handle, Reset/Done buttons.
-    Bottom-aligned, sized to keyboard area only (not full screen).
+    Sized programmatically to match keyboard height, aligned to bottom.
     SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
 -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/resize_mode_overlay"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:layout_gravity="bottom"
+    android:layout_height="wrap_content"
     android:clickable="true"
     android:focusable="true"
     android:visibility="gone">
@@ -49,7 +48,7 @@
         android:layout_gravity="end|center_vertical" />
 
     <!-- Center drag handle — large blue circle with 4-arrow icon.
-         80dp for a bigger touch target. -->
+         80dp for easy grabbing, centered over the keyboard keys. -->
     <ImageView
         android:id="@+id/resize_drag_handle"
         android:layout_width="80dp"
@@ -61,42 +60,41 @@
         android:contentDescription="@string/resize_keyboard"
         android:importantForAccessibility="yes" />
 
-    <!-- Reset + Done buttons — large touch targets -->
+    <!-- Reset + Done buttons — overlaid on the keyboard keys, Samsung style -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
         android:orientation="horizontal">
 
         <TextView
             android:id="@+id/resize_reset_btn"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="48dp"
-            android:minWidth="100dp"
+            android:layout_weight="1"
             android:gravity="center"
             android:text="@string/resize_keyboard_reset"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold"
-            android:paddingStart="28dp"
-            android:paddingEnd="28dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginEnd="8dp"
             android:clickable="true"
             android:focusable="true" />
 
         <TextView
             android:id="@+id/resize_done_btn"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="48dp"
-            android:minWidth="100dp"
+            android:layout_weight="1"
             android:gravity="center"
             android:text="@string/resize_keyboard_done"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold"
-            android:paddingStart="28dp"
-            android:paddingEnd="28dp"
+            android:layout_marginStart="8dp"
             android:clickable="true"
             android:focusable="true" />
 

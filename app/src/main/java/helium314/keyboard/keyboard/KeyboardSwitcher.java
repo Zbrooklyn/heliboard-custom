@@ -80,6 +80,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private View mResizeDoneBtn;
     private View mResizeResetBtn;
     private boolean mResizeModeActive;
+    private float mResizeOriginalScale;
     private TextView mFakeToastView;
     private LatinIME mLatinIME;
     private RichInputMethodManager mRichImm;
@@ -204,6 +205,11 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     }
 
     public void onHideWindow() {
+        // If resize mode was active, revert to original scale (user didn't tap Done)
+        if (mResizeModeActive) {
+            Settings.getInstance().writeHeightScale(mResizeOriginalScale);
+            exitResizeMode(false); // don't rebuild — keyboard is hiding
+        }
         if (mKeyboardView != null) {
             mKeyboardView.onHideWindow();
         }
@@ -452,6 +458,12 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
 
     private void enterResizeMode() {
         mResizeModeActive = true;
+        // Save original scale so we can revert if user dismisses without tapping Done
+        mResizeOriginalScale = Settings.getValues().mKeyboardHeightScale;
+        // Exit one-handed mode if active — resize + one-handed produces broken visuals
+        if (mKeyboardViewWrapper != null && mKeyboardViewWrapper.getOneHandedModeEnabled()) {
+            setOneHandedModeEnabled(false);
+        }
         // Hide competing views first
         if (mFeatureDrawerView != null) mFeatureDrawerView.setVisibility(View.GONE);
         if (mVoiceInputModeView != null) mVoiceInputModeView.setVisibility(View.GONE);
@@ -460,8 +472,15 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             mKeyboardView.setAlpha(0.3f);
             mKeyboardView.setEnabled(false);
         }
-        // Show overlay (sits on top, blocks remaining touches via clickable scrim)
-        if (mResizeOverlay != null) mResizeOverlay.setVisibility(View.VISIBLE);
+        // Size the overlay to match keyboard view exactly (not full wrapper),
+        // and align it to the bottom so it sits over the keys, not the toolbar.
+        if (mResizeOverlay != null && mKeyboardView != null) {
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, mKeyboardView.getHeight());
+            lp.gravity = Gravity.BOTTOM;
+            mResizeOverlay.setLayoutParams(lp);
+            mResizeOverlay.setVisibility(View.VISIBLE);
+        }
         // Hide old handle (kept for compat but not used)
         if (mResizeHandle != null) mResizeHandle.setVisibility(View.GONE);
     }
@@ -473,9 +492,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         if (mKeyboardView != null) {
             mKeyboardView.setAlpha(1f);
             mKeyboardView.setEnabled(true);
+            mKeyboardView.setScaleY(1f);
         }
-        // Reset visual scale
-        if (mMainKeyboardFrame != null) mMainKeyboardFrame.setScaleY(1f);
         if (rebuild) {
             setThemeNeedsReload();
             reloadMainKeyboard();
@@ -547,17 +565,20 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
                         startY[0] = event.getRawY();
                         startScale[0] = Settings.getValues().mKeyboardHeightScale;
                         pendingScale[0] = startScale[0];
-                        if (mMainKeyboardFrame != null) {
-                            mMainKeyboardFrame.setPivotY(mMainKeyboardFrame.getHeight());
+                        // Pivot at bottom so keyboard grows/shrinks from the top
+                        if (mKeyboardView != null) {
+                            mKeyboardView.setPivotY(mKeyboardView.getHeight());
                         }
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         float deltaY = startY[0] - event.getRawY();
                         float deltaPct = deltaY / (200 * density);
-                        pendingScale[0] = Math.max(0.5f, Math.min(1.5f, startScale[0] + deltaPct));
-                        if (mMainKeyboardFrame != null) {
+                        // Match settings slider range: 0.3f to 1.5f
+                        pendingScale[0] = Math.max(0.3f, Math.min(1.5f, startScale[0] + deltaPct));
+                        // Scale ONLY the keyboard view, not the entire frame (which includes toolbar)
+                        if (mKeyboardView != null) {
                             float visualScale = pendingScale[0] / startScale[0];
-                            mMainKeyboardFrame.setScaleY(visualScale);
+                            mKeyboardView.setScaleY(visualScale);
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
@@ -566,8 +587,9 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
                         }
                         return true;
                     case MotionEvent.ACTION_CANCEL:
-                        if (mMainKeyboardFrame != null) {
-                            mMainKeyboardFrame.setScaleY(1f);
+                        // Revert visual scale on cancel
+                        if (mKeyboardView != null) {
+                            mKeyboardView.setScaleY(1f);
                         }
                         return true;
                 }
@@ -580,14 +602,16 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             mResizeDoneBtn.setOnClickListener(v -> exitResizeMode(true));
         }
 
-        // --- Reset button: restore default scale, stay in resize mode ---
+        // --- Reset button: restore default scale and rebuild immediately ---
         if (mResizeResetBtn != null) {
             mResizeResetBtn.setOnClickListener(v -> {
                 Settings.getInstance().writeHeightScale(1.0f);
-                // Reset visual scale preview
-                if (mMainKeyboardFrame != null) {
-                    mMainKeyboardFrame.setScaleY(1f);
-                }
+                mResizeOriginalScale = 1.0f;
+                // Rebuild keyboard at default height, then re-enter resize mode
+                if (mKeyboardView != null) mKeyboardView.setScaleY(1f);
+                exitResizeMode(true);
+                // Re-enter resize mode so user can see the result and continue adjusting
+                mKeyboardView.post(() -> enterResizeMode());
             });
         }
     }
@@ -939,6 +963,12 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
 
     @SuppressLint("InflateParams")
     public View onCreateInputView(@NonNull Context displayContext, final boolean isHardwareAcceleratedDrawingEnabled) {
+        // If resize mode was active when input view is recreated (e.g. theme change),
+        // revert to original scale since the user didn't explicitly confirm via Done.
+        if (mResizeModeActive) {
+            Settings.getInstance().writeHeightScale(mResizeOriginalScale);
+            mResizeModeActive = false;
+        }
         if (mKeyboardView != null) {
             mKeyboardView.closing();
         }
