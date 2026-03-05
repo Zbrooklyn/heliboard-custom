@@ -21,6 +21,8 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.OnLongClickListener
+import android.widget.PopupWindow
+import android.widget.Toast
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
 import android.widget.FrameLayout
@@ -30,6 +32,7 @@ import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import helium314.keyboard.compat.isDeviceLocked
+import helium314.keyboard.keyboard.KeyboardActionListener
 import helium314.keyboard.event.HapticEvent
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.internal.KeyboardIconsSet
@@ -57,6 +60,7 @@ import helium314.keyboard.latin.utils.getCodeForToolbarKeyLongClick
 import helium314.keyboard.latin.utils.getEnabledToolbarKeys
 import helium314.keyboard.latin.utils.getPinnedToolbarKeys
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.latin.utils.getQuickTextSnippets
 import helium314.keyboard.latin.utils.removeFirst
 import helium314.keyboard.latin.utils.removePinnedKey
 import helium314.keyboard.latin.utils.setToolbarButtonsActivatedStateOnPrefChange
@@ -409,6 +413,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     private fun onLongClickToolbarKey(view: View) {
         val tag = view.tag as? ToolbarKey ?: return
+        if (tag == ToolbarKey.QUICK_TEXT) {
+            showQuickTextPopup(view)
+            return
+        }
         if (!Settings.getValues().mQuickPinToolbarKeys || view.parent === pinnedKeys) {
             val longClickCode = getCodeForToolbarKeyLongClick(tag)
             if (longClickCode != KeyCode.UNSPECIFIED) {
@@ -426,6 +434,61 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 pinnedKeys.removeView(pinnedKeyView)
             }
         }
+    }
+
+    private fun showQuickTextPopup(anchorView: View) {
+        val snippets = getQuickTextSnippets(context.prefs())
+        if (snippets.isEmpty()) {
+            Toast.makeText(context, R.string.quick_text_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (snippets.size == 1) {
+            (listener as? KeyboardActionListener)?.onTextInput(snippets[0])
+            return
+        }
+        val colors = Settings.getValues().mColors
+        val popupLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (8 * density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        val popup = PopupWindow(
+            popupLayout,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+        for (snippet in snippets) {
+            val item = TextView(context).apply {
+                text = snippet
+                textSize = 14f
+                setTextColor(colors.get(ColorType.KEY_TEXT))
+                val itemPad = (12 * density).toInt()
+                setPadding(itemPad, (8 * density).toInt(), itemPad, (8 * density).toInt())
+                minWidth = (120 * density).toInt()
+                setOnClickListener {
+                    (listener as? KeyboardActionListener)?.onTextInput(snippet)
+                    popup.dismiss()
+                }
+            }
+            popupLayout.addView(item)
+        }
+        val bgDrawable = GradientDrawable().apply {
+            setColor(colors.get(ColorType.KEY_BACKGROUND))
+            cornerRadius = 8 * density
+        }
+        popupLayout.background = bgDrawable
+        popup.isOutsideTouchable = true
+        popup.elevation = 8 * density
+        // Measure to position above anchor
+        popupLayout.measure(
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        val popupHeight = popupLayout.measuredHeight
+        val location = IntArray(2)
+        anchorView.getLocationInWindow(location)
+        popup.showAsDropDown(anchorView, 0, -(popupHeight + anchorView.height))
     }
 
     @SuppressLint("ClickableViewAccessibility") // no need for View#performClick, we only return false mostly anyway

@@ -156,6 +156,7 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SPLIT -> R.drawable.ic_ime_switcher
                     ToolbarKey.REWRITE -> R.drawable.ic_rewrite
                     ToolbarKey.RESIZE -> R.drawable.ic_resize_drag
+                    ToolbarKey.QUICK_TEXT -> R.drawable.ic_quick_text_holo
                 })
             }
         } }
@@ -219,6 +220,7 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SPLIT -> R.drawable.ic_ime_switcher
                     ToolbarKey.REWRITE -> R.drawable.ic_rewrite
                     ToolbarKey.RESIZE -> R.drawable.ic_resize_drag
+                    ToolbarKey.QUICK_TEXT -> R.drawable.ic_quick_text_lxx
                 })
             }
         } }
@@ -282,6 +284,7 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SPLIT -> R.drawable.ic_ime_switcher
                     ToolbarKey.REWRITE -> R.drawable.ic_rewrite
                     ToolbarKey.RESIZE -> R.drawable.ic_resize_drag
+                    ToolbarKey.QUICK_TEXT -> R.drawable.ic_quick_text_rounded
                 })
             }
         } }

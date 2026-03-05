@@ -45,6 +45,7 @@ fun MainSettingsScreen(
     onClickDictionaries: () -> Unit,
     onClickVoiceAI: () -> Unit,
     onClickThemeSize: () -> Unit,
+    onClickClipboard: () -> Unit,
     onClickBack: () -> Unit,
 ) {
     SearchSettingsScreen(
@@ -69,6 +70,16 @@ fun MainSettingsScreen(
                     onClick = onClickThemeSize,
                     icon = R.drawable.ic_settings_appearance
                 ) { NextScreenIcon() }
+                Preference(
+                    name = stringResource(R.string.settings_screen_toolbar),
+                    onClick = onClickToolbar,
+                    icon = R.drawable.ic_settings_toolbar
+                ) { NextScreenIcon() }
+                Preference(
+                    name = stringResource(R.string.settings_screen_clipboard),
+                    onClick = onClickClipboard,
+                    icon = R.drawable.sym_keyboard_clipboard_holo
+                ) { NextScreenIcon() }
 
                 // ── Classic Settings (legacy HeliBoard) ──
                 PreferenceCategory(stringResource(R.string.settings_category_classic))
@@ -87,11 +98,6 @@ fun MainSettingsScreen(
                     name = stringResource(R.string.settings_screen_correction),
                     onClick = onClickTextCorrection,
                     icon = R.drawable.ic_settings_correction
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_toolbar),
-                    onClick = onClickToolbar,
-                    icon = R.drawable.ic_settings_toolbar
                 ) { NextScreenIcon() }
                 if (JniUtils.sHaveGestureLib)
                     Preference(
@@ -142,7 +148,7 @@ private fun PreviewScreen() {
     initPreview(LocalContext.current)
     Theme(previewDark) {
         Surface {
-            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 }

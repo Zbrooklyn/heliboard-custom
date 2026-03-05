@@ -64,6 +64,7 @@ import helium314.keyboard.latin.utils.ScriptUtils;
 import helium314.keyboard.latin.utils.StatsUtils;
 import helium314.keyboard.latin.utils.TextPlacement;
 import helium314.keyboard.latin.utils.TextRange;
+import helium314.keyboard.latin.utils.QuickTextUtilsKt;
 import helium314.keyboard.latin.utils.TimestampKt;
 
 import java.util.ArrayList;
@@ -807,6 +808,10 @@ public final class InputLogic {
                 break;
             case KeyCode.TIMESTAMP:
                 mLatinIME.onTextInput(TimestampKt.getTimestamp(mLatinIME));
+                break;
+            case KeyCode.QUICK_TEXT:
+                final String snippet = QuickTextUtilsKt.getDefaultQuickTextSnippet(Settings.getInstance().getPrefs());
+                if (snippet != null) mLatinIME.onTextInput(snippet);
                 break;
             case KeyCode.EMOJI_SEARCH:
                 commitTyped(Settings.getValues(), LastComposedWord.NOT_A_SEPARATOR);

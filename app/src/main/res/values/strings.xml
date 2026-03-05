@@ -45,6 +45,7 @@
     <!-- Settings screen title for voice and AI settings -->
     <string name="settings_screen_voice_ai">Voice &amp; AI</string>
     <string name="settings_screen_theme_size">Theme &amp; Size</string>
+    <string name="settings_screen_clipboard">Clipboard</string>
     <string name="settings_category_whisperclick">WhisperClick</string>
     <string name="settings_category_classic">Classic Settings</string>
     <string name="voice_ai_stt_mode">Speech-to-text mode</string>
@@ -282,6 +283,14 @@
     <string name="clipboard_history_retention_time">History retention time</string>
     <!-- Preferences item for showing pinned clipboard items first -->
     <string name="clipboard_history_pinned_first">Show pinned items on top</string>
+    <!-- Quick text (Samsung-style custom text snippets) -->
+    <string name="quick_text">Quick text</string>
+    <string name="quick_text_snippets">Quick text snippets</string>
+    <string name="quick_text_snippets_summary">Text you type often (email, phone, address…)</string>
+    <string name="quick_text_add">Add snippet</string>
+    <string name="quick_text_empty">No quick text configured</string>
+    <string name="quick_text_hint">Enter text…</string>
+    <string name="settings_category_quick_text">Quick text</string>
     <!-- Preferences item for enabling swipe deletion -->
     <string name="delete_swipe">Delete swipe</string>
     <!-- Description for "delete_swipe" option. -->
