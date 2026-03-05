@@ -68,17 +68,24 @@ class VoiceInputManager(
         private const val LOCAL_TRANSCRIBE_TIMEOUT_MS = 60_000L
     }
 
-    fun loadModel(modelPath: String) {
+    @JvmOverloads
+    fun loadModel(modelPath: String, onLoaded: Runnable? = null) {
         scope.launch {
             try {
                 Log.d(TAG, "Loading whisper model from: $modelPath")
+                val startMs = System.currentTimeMillis()
                 whisperContext = WhisperContext.createContextFromFile(modelPath)
-                Log.d(TAG, "Whisper model loaded successfully")
+                val elapsed = System.currentTimeMillis() - startMs
+                Log.d(TAG, "Whisper model loaded successfully in ${elapsed}ms")
+                withContext(Dispatchers.Main) {
+                    onLoaded?.run()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load whisper model", e)
                 withContext(Dispatchers.Main) {
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
+                    onLoaded?.run()
                 }
             }
         }

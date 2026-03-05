@@ -1743,8 +1743,16 @@ public class LatinIME extends InputMethodService implements
             if (!mVoiceInputManager.isModelLoaded()) {
                 java.io.File modelFile = mVoiceInputManager.getModelFile();
                 if (modelFile != null) {
-                    mVoiceInputManager.loadModel(modelFile.getAbsolutePath());
                     showVoiceStatus("\u23F3  Loading voice model...");
+                    mVoiceInputManager.loadModel(modelFile.getAbsolutePath(), () -> {
+                        clearVoiceStatus();
+                        if (mVoiceInputManager.isModelLoaded()) {
+                            // Auto-start recording — user already tapped mic expecting to record
+                            handleVoiceInput();
+                        } else {
+                            Toast.makeText(this, "Failed to load voice model", Toast.LENGTH_LONG).show();
+                        }
+                    });
                     return;
                 }
             }
