@@ -38,6 +38,7 @@ class XLinkTest { // Without the X, SubtypeTests fail with ClassCastException. W
     }
 
     @Test fun readmeLinks() {
+        if (BuildConfig.BUILD_TYPE == "runTests") return // don't spam requests on every PR update
         val file = File("../README.md")
         val linkRegex = "(?:https?:\\/\\/.)?(?:www\\.)?[-a-zA-Z0-9@%._\\+~#=]{2,256}\\.[a-z]{2,6}\\b(?:[-a-zA-Z0-9@:%_\\+.~#?&\\/\\/=]*)".toRegex()
         val links = linkRegex.findAll(file.readText())
@@ -48,6 +49,7 @@ class XLinkTest { // Without the X, SubtypeTests fail with ClassCastException. W
     }
 
     @Test fun layoutsLinks() {
+        if (BuildConfig.BUILD_TYPE == "runTests") return // don't spam requests on every PR update
         val file = File("../layouts.md")
         val linkRegex = "(?:https?:\\/\\/.)?(?:www\\.)?[-a-zA-Z0-9@%._\\+~#=]{2,256}\\.[a-z]{2,6}\\b(?:[-a-zA-Z0-9@:%_\\+.~#?&\\/\\/=]*)".toRegex()
         val links = linkRegex.findAll(file.readText())
