@@ -56,6 +56,7 @@ import helium314.keyboard.latin.suggestions.SuggestionStripViewAccessor;
 import helium314.keyboard.latin.utils.AsyncResultHolder;
 import helium314.keyboard.latin.utils.DictionaryInfoUtils;
 import helium314.keyboard.latin.utils.InputTypeUtils;
+import helium314.keyboard.latin.utils.KtxKt;
 import helium314.keyboard.latin.utils.IntentUtils;
 import helium314.keyboard.latin.utils.Log;
 import helium314.keyboard.latin.utils.RecapitalizeMode;
@@ -810,7 +811,7 @@ public final class InputLogic {
                 mLatinIME.onTextInput(TimestampKt.getTimestamp(mLatinIME));
                 break;
             case KeyCode.QUICK_TEXT:
-                final String snippet = QuickTextUtilsKt.getDefaultQuickTextSnippet(Settings.getInstance().getPrefs());
+                final String snippet = QuickTextUtilsKt.getDefaultQuickTextSnippet(KtxKt.prefs(mLatinIME));
                 if (snippet != null) mLatinIME.onTextInput(snippet);
                 break;
             case KeyCode.EMOJI_SEARCH:
