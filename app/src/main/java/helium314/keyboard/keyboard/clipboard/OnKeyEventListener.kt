@@ -8,4 +8,10 @@ interface OnKeyEventListener {
 
     fun onKeyUp(clipId: Long)
 
+    /** Called when long-press should enter selection mode with the given clip pre-checked */
+    fun onLongPressSelect(clipId: Long) {}
+
+    /** Called when selection changes (item toggled) so the view can update count display */
+    fun onSelectionChanged() {}
+
 }

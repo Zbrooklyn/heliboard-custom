@@ -64,6 +64,16 @@ class ClipboardHistoryManager(
         clipboardDao?.togglePinned(id)
     }
 
+    fun bulkPin(ids: Set<Long>, pin: Boolean) {
+        clipboardDao?.setPinnedBulk(ids, pin)
+    }
+
+    fun bulkDelete(ids: Set<Long>) {
+        clipboardDao?.deleteBulk(ids)
+    }
+
+    fun getHistoryEntryById(id: Long) = clipboardDao?.get(id)
+
     fun clearHistory() {
         clipboardDao?.clearNonPinned()
         ClipboardManagerCompat.clearPrimaryClip(clipboardManager)

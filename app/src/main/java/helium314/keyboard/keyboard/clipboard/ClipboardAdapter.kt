@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -31,6 +32,9 @@ class ClipboardAdapter(
     var itemTextColor = 0
     var itemTextSize = 0f
 
+    var isSelectionMode = false
+    val selectedIds = mutableSetOf<Long>()
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.clipboard_entry_key, parent, false)
@@ -51,6 +55,7 @@ class ClipboardAdapter(
 
         private val pinnedIconView: ImageView
         private val contentView: TextView
+        private val checkBox: CheckBox
 
         init {
             view.apply {
@@ -70,6 +75,7 @@ class ClipboardAdapter(
                 setTextColor(itemTextColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, itemTextSize)
             }
+            checkBox = view.findViewById(R.id.clipboard_entry_checkbox)
             clipboardLayoutParams.setItemProperties(view)
             val colors = Settings.getValues().mColors
             colors.setColor(pinnedIconView, ColorType.CLIPBOARD_PIN)
@@ -79,10 +85,22 @@ class ClipboardAdapter(
             itemView.tag = historyEntry?.id
             contentView.text = historyEntry?.text?.take(1000) // truncate displayed text for performance reasons
             pinnedIconView.visibility = if (historyEntry?.isPinned == true) View.VISIBLE else View.GONE
+
+            val isSelected = isSelectionMode && historyEntry?.id in selectedIds
+            // Selection mode: show/hide checkbox, set checked state
+            if (isSelectionMode) {
+                checkBox.visibility = View.VISIBLE
+                checkBox.isChecked = isSelected
+            } else {
+                checkBox.visibility = View.GONE
+            }
+            // Highlight selected cards with reduced alpha
+            itemView.alpha = if (isSelectionMode && !isSelected) 0.5f else 1.0f
         }
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View, event: MotionEvent): Boolean {
+            if (isSelectionMode) return false
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
                 keyEventListener.onKeyDown(view.tag as Long)
             }
@@ -90,11 +108,22 @@ class ClipboardAdapter(
         }
 
         override fun onClick(view: View) {
-            keyEventListener.onKeyUp(view.tag as Long)
+            val id = view.tag as Long
+            if (isSelectionMode) {
+                if (id in selectedIds) selectedIds.remove(id) else selectedIds.add(id)
+                checkBox.isChecked = id in selectedIds
+                itemView.alpha = if (id in selectedIds) 1.0f else 0.5f
+                keyEventListener.onSelectionChanged()
+                return
+            }
+            keyEventListener.onKeyUp(id)
         }
 
         override fun onLongClick(view: View): Boolean {
-            clipboardHistoryManager?.toggleClipPinned(view.tag as Long)
+            val id = view.tag as Long
+            if (isSelectionMode) return true // suppress in selection mode
+            // Long-press enters selection mode with this card pre-checked
+            keyEventListener.onLongPressSelect(id)
             return true
         }
     }

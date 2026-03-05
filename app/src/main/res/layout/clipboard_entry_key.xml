@@ -5,8 +5,18 @@
 <LinearLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="@dimen/config_clipboard_card_height"
         android:orientation="horizontal">
+
+    <CheckBox
+            android:id="@+id/clipboard_entry_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="6dp"
+            android:clickable="false"
+            android:focusable="false"
+            android:visibility="gone"/>
 
     <ImageView
             android:id="@+id/clipboard_entry_pinned_icon"
@@ -21,14 +31,15 @@
     <TextView
             android:id="@+id/clipboard_entry_content"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginTop="12dp"
             android:layout_marginBottom="12dp"
             android:layout_marginHorizontal="14dp"
+            android:gravity="top"
             android:hapticFeedbackEnabled="false"
             android:soundEffectsEnabled="false"
             android:ellipsize="end"
-            android:maxLines="4"/>
+            android:maxLines="3"/>
 
 </LinearLayout>

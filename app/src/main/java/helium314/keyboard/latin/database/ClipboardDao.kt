@@ -27,6 +27,7 @@ class ClipboardDao private constructor(private val db: Database) {
         fun onClipInserted(position: Int)
         fun onClipsRemoved(position: Int, count: Int)
         fun onClipMoved(oldPosition: Int, newPosition: Int)
+        fun onDataSetChanged()
     }
 
     var listener: Listener? = null
@@ -113,6 +114,44 @@ class ClipboardDao private constructor(private val db: Database) {
         cv.put(COLUMN_PINNED, entry.isPinned)
         cv.put(COLUMN_TIMESTAMP, entry.timeStamp)
         db.writableDatabase.update(TABLE, cv, "$COLUMN_ID = ${entry.id}", null)
+    }
+
+    fun setPinnedBulk(ids: Set<Long>, pin: Boolean) {
+        val db = db.writableDatabase
+        db.beginTransaction()
+        try {
+            val cv = ContentValues(2)
+            val now = System.currentTimeMillis()
+            for (id in ids) {
+                val entry = cache.firstOrNull { it.id == id } ?: continue
+                entry.isPinned = pin
+                entry.timeStamp = now
+                cv.clear()
+                cv.put(COLUMN_PINNED, pin)
+                cv.put(COLUMN_TIMESTAMP, now)
+                db.update(TABLE, cv, "$COLUMN_ID = $id", null)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        cache.sort()
+        listener?.onDataSetChanged()
+    }
+
+    fun deleteBulk(ids: Set<Long>) {
+        val db = db.writableDatabase
+        db.beginTransaction()
+        try {
+            for (id in ids) {
+                db.delete(TABLE, "$COLUMN_ID = $id", null)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        val removed = cache.removeAll { it.id in ids }
+        if (removed) listener?.onDataSetChanged()
     }
 
     // RecyclerView initiates this, so we don't call listener (or we'll get an IndexOutOfRangeException from RecyclerView)
