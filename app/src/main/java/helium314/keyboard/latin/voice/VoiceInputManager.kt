@@ -131,7 +131,13 @@ class VoiceInputManager(
         when (state) {
             VoiceState.IDLE -> startRecording()
             VoiceState.LISTENING -> stopAndTranscribe()
-            else -> { /* ignore during transcription */ }
+            VoiceState.ERROR -> {
+                // Recover from error — reset and allow a fresh start
+                state = VoiceState.IDLE
+                onStateChange.onStateChange(state)
+                startRecording()
+            }
+            VoiceState.TRANSCRIBING -> { /* ignore during active transcription */ }
         }
     }
 
@@ -173,7 +179,9 @@ class VoiceInputManager(
 
     /** Start Google SpeechRecognizer in continuous mode. Must run on main thread. */
     private fun startGoogleStt() {
-        val client = googleSttClient ?: GoogleSttClient(context).also { googleSttClient = it }
+        // Always create a fresh client to avoid stale isListening state
+        googleSttClient?.cancel()
+        val client = GoogleSttClient(context).also { googleSttClient = it }
 
         if (!client.isAvailable()) {
             Log.e(TAG, "Google speech recognition not available on this device")
