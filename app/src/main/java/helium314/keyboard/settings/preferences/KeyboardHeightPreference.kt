@@ -117,6 +117,8 @@ private fun KeyboardHeightDialog(
         applyScale(index, scale)
     }
 
+    var confirmed by remember { mutableStateOf(false) }
+
     fun restoreOriginal() {
         for (i in 0..1) {
             if (originalValues[i] == defaults[i])
@@ -129,13 +131,11 @@ private fun KeyboardHeightDialog(
 
     ThreeButtonAlertDialog(
         onDismissRequest = {
-            // Cancel — restore original values
-            restoreOriginal()
+            if (!confirmed) restoreOriginal()
             onDismissRequest()
         },
         onConfirmed = {
-            // Confirm — values are already written live, just close
-            onDismissRequest()
+            confirmed = true
         },
         title = { Text(stringResource(R.string.prefs_keyboard_height_scale)) },
         content = {
