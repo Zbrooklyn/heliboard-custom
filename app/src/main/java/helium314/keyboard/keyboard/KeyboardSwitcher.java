@@ -525,21 +525,17 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             mResizeDragHandle.setBackground(circle);
         }
 
-        // --- Style edge tabs (blue rounded rects) ---
-        int[][] tabIds = {
-            {R.id.resize_top_tab},
-            {R.id.resize_left_tab},
-            {R.id.resize_right_tab}
-        };
-        for (int[] ids : tabIds) {
-            View tab = mResizeOverlay.findViewById(ids[0]);
-            if (tab != null) {
-                android.graphics.drawable.GradientDrawable tabBg = new android.graphics.drawable.GradientDrawable();
-                tabBg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                tabBg.setCornerRadius(3 * density);
-                tabBg.setColor(blueColor);
-                tab.setBackground(tabBg);
-            }
+        // --- Style top edge tab (blue rounded rect) ---
+        View topTab = mResizeOverlay.findViewById(R.id.resize_top_tab);
+        if (topTab != null) {
+            android.graphics.drawable.GradientDrawable tabBg = new android.graphics.drawable.GradientDrawable();
+            tabBg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+            tabBg.setCornerRadius(3 * density);
+            tabBg.setColor(blueColor);
+            // Inset so the visible bar is centered inside the larger touch target
+            android.graphics.drawable.InsetDrawable inset = new android.graphics.drawable.InsetDrawable(
+                    tabBg, (int)(16 * density), (int)(9 * density), (int)(16 * density), (int)(9 * density));
+            topTab.setBackground(inset);
         }
 
         // --- Style Reset and Done buttons (rounded dark background) ---
@@ -554,47 +550,51 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             }
         }
 
-        // --- Drag handle touch listener ---
+        // --- Shared vertical drag touch listener (used by center handle + top tab) ---
         final float[] startY = {0f};
         final float[] startScale = {1f};
         final float[] pendingScale = {1f};
+        final View.OnTouchListener resizeDragListener = (v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    startY[0] = event.getRawY();
+                    startScale[0] = Settings.getValues().mKeyboardHeightScale;
+                    pendingScale[0] = startScale[0];
+                    // Pivot at bottom so keyboard grows/shrinks from the top
+                    if (mKeyboardView != null) {
+                        mKeyboardView.setPivotY(mKeyboardView.getHeight());
+                    }
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    float deltaY = startY[0] - event.getRawY();
+                    float deltaPct = deltaY / (200 * density);
+                    // Match settings slider range: 0.3f to 1.5f
+                    pendingScale[0] = Math.max(0.3f, Math.min(1.5f, startScale[0] + deltaPct));
+                    // Scale ONLY the keyboard view, not the entire frame (which includes toolbar)
+                    if (mKeyboardView != null) {
+                        float visualScale = pendingScale[0] / startScale[0];
+                        mKeyboardView.setScaleY(visualScale);
+                    }
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    if (Math.abs(pendingScale[0] - startScale[0]) >= 0.02f) {
+                        Settings.getInstance().writeHeightScale(pendingScale[0]);
+                    }
+                    return true;
+                case MotionEvent.ACTION_CANCEL:
+                    // Revert visual scale on cancel
+                    if (mKeyboardView != null) {
+                        mKeyboardView.setScaleY(1f);
+                    }
+                    return true;
+            }
+            return false;
+        };
         if (mResizeDragHandle != null) {
-            mResizeDragHandle.setOnTouchListener((v, event) -> {
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        startY[0] = event.getRawY();
-                        startScale[0] = Settings.getValues().mKeyboardHeightScale;
-                        pendingScale[0] = startScale[0];
-                        // Pivot at bottom so keyboard grows/shrinks from the top
-                        if (mKeyboardView != null) {
-                            mKeyboardView.setPivotY(mKeyboardView.getHeight());
-                        }
-                        return true;
-                    case MotionEvent.ACTION_MOVE:
-                        float deltaY = startY[0] - event.getRawY();
-                        float deltaPct = deltaY / (200 * density);
-                        // Match settings slider range: 0.3f to 1.5f
-                        pendingScale[0] = Math.max(0.3f, Math.min(1.5f, startScale[0] + deltaPct));
-                        // Scale ONLY the keyboard view, not the entire frame (which includes toolbar)
-                        if (mKeyboardView != null) {
-                            float visualScale = pendingScale[0] / startScale[0];
-                            mKeyboardView.setScaleY(visualScale);
-                        }
-                        return true;
-                    case MotionEvent.ACTION_UP:
-                        if (Math.abs(pendingScale[0] - startScale[0]) >= 0.02f) {
-                            Settings.getInstance().writeHeightScale(pendingScale[0]);
-                        }
-                        return true;
-                    case MotionEvent.ACTION_CANCEL:
-                        // Revert visual scale on cancel
-                        if (mKeyboardView != null) {
-                            mKeyboardView.setScaleY(1f);
-                        }
-                        return true;
-                }
-                return false;
-            });
+            mResizeDragHandle.setOnTouchListener(resizeDragListener);
+        }
+        if (topTab != null) {
+            topTab.setOnTouchListener(resizeDragListener);
         }
 
         // --- Done button: exit resize mode, rebuild keyboard ---

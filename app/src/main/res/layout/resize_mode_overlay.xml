@@ -25,27 +25,13 @@
         android:clickable="true"
         android:focusable="true" />
 
-    <!-- Top edge grab tab -->
+    <!-- Top edge grab tab — draggable touch target for height resize.
+         64dp wide × 24dp tall; the visible blue bar is drawn by code inside this area. -->
     <View
         android:id="@+id/resize_top_tab"
-        android:layout_width="48dp"
-        android:layout_height="6dp"
-        android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="0dp" />
-
-    <!-- Left edge grab tab -->
-    <View
-        android:id="@+id/resize_left_tab"
-        android:layout_width="6dp"
-        android:layout_height="48dp"
-        android:layout_gravity="start|center_vertical" />
-
-    <!-- Right edge grab tab -->
-    <View
-        android:id="@+id/resize_right_tab"
-        android:layout_width="6dp"
-        android:layout_height="48dp"
-        android:layout_gravity="end|center_vertical" />
+        android:layout_width="64dp"
+        android:layout_height="24dp"
+        android:layout_gravity="top|center_horizontal" />
 
     <!-- Center drag handle — large blue circle with 4-arrow icon.
          80dp for easy grabbing, centered over the keyboard keys. -->
