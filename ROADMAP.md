@@ -25,12 +25,12 @@ Reference: `/storage/emulated/0/DCIM/Screenshots/Screenshot_20260303_083654_Term
 
 | # | Gap | Difficulty | Notes |
 |---|-----|-----------|-------|
-| 1 | **Number row text size** — Samsung digits are ~20% larger than letter keys | Medium | Need a separate `config_key_large_letter_ratio` or per-row text size override. May require Kotlin changes if XML config doesn't support per-row sizing. |
+| 1 | ~~**Number row text size**~~ | ~~Medium~~ | **DONE** — 62% ratio in config.xml (commits `5a8affc3`, `eddce79c`) |
 | 2 | **Key icons** — shift, backspace, enter, globe icons don't match Samsung style | Medium | Samsung uses outlined/hollow icon style. Would need custom drawable SVGs replacing HeliBoard's defaults. Files are in `app/src/main/res/drawable/` (sym_keyboard_shift_*, sym_keyboard_delete_*, sym_keyboard_enter_*, sym_keyboard_language_switch_*). |
 | 3 | **Action row content** — Samsung shows autofill suggestions (email, address) as a toolbar button | Hard | HeliBoard's action row is static function keys. Samsung integrates with Android Autofill framework to show context-aware suggestions inline. Would need Autofill API integration + dynamic action row key generation. |
-| 4 | **Key color fine-tuning** — #333333 is close but Samsung may vary by device/One UI version (~#333333 to #3A3A3A) | Easy | One-line change in colors.xml. May need side-by-side testing on device to nail exact value. |
-| 5 | **Hint text characters** — HeliBoard shows `% \ \| = [ ] < > { }`, Samsung shows `+ × ÷ = / - < > [ ]` | Medium | Defined in popup keys / hint labels in the main layout JSON. Would need to remap hint characters to match Samsung's symbol assignments. |
-| 6 | **Toolbar background** — Samsung toolbar has subtle dark gray background strip, HeliBoard toolbar sits on pure black | Easy | Add a background color to the toolbar_container or toolbar LinearLayout in suggestions_strip.xml. |
+| 4 | ~~**Key color fine-tuning**~~ | ~~Easy~~ | **DONE** — #333333 with two-tone functional keys (commits `df934489`, `78a8be67`, `5987be06`) |
+| 5 | ~~**Hint text characters**~~ | ~~Medium~~ | **DONE** — remapped to Samsung character set (commits `eddce79c`, `5a8affc3`) |
+| 6 | ~~**Toolbar background**~~ | ~~Easy~~ | **DONE** — subtle dark gray strip (commit `eddce79c`) |
 
 ### Not Fixable (Samsung One UI / System Level)
 

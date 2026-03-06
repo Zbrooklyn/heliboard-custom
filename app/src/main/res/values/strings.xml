@@ -35,7 +35,7 @@
     <!-- Option to control whether or not to show a popup with a larger font on each key press. -->
     <string name="popup_on_keypress">Popup on keypress</string>
     <!-- Settings screen title for preferences-->
-    <string name="settings_screen_preferences">Input &amp; Feedback</string>
+    <string name="settings_screen_preferences">Keys &amp; Feedback</string>
     <!-- Settings screen title for gesture typing preferences -->
     <string name="settings_screen_gesture">Swipe Typing</string>
     <!-- Settings screen title for text correction options -->
@@ -44,7 +44,6 @@
     <string name="settings_screen_advanced">Advanced</string>
     <!-- Settings screen title for voice and AI settings -->
     <string name="settings_screen_voice_ai">Voice &amp; AI</string>
-    <string name="settings_screen_theme_size">Theme &amp; Size</string>
     <string name="settings_screen_clipboard">Clipboard</string>
     <string name="settings_category_whisperclick">WhisperClick</string>
     <string name="settings_category_classic">Classic Settings</string>
