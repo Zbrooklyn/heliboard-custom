@@ -1058,20 +1058,13 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         if (mLatinIME == null || !mLatinIME.isInputViewShown())
             return; // will be reloaded right before showing IME
 
-        // Reload in-place: rebuild the input view without hiding/showing the window.
-        // The old approach (hideWindow + showWindow) caused a visible dismiss/reappear flicker.
+        // Hide and show IME, showing will trigger the reload.
+        // Reloading while IME is shown is glitchy, and hiding / showing is so fast the user shouldn't notice.
+        mLatinIME.hideWindow();
         try {
-            final Context displayContext = KtxKt.getDisplayContext(mLatinIME);
-            updateKeyboardTheme(displayContext);
-        } catch (Exception e) {
-            // Fallback: if in-place reload fails, use the old hide/show approach
-            mThemeNeedsReload = true;
-            mLatinIME.hideWindow();
-            try {
-                mLatinIME.showWindow(true);
-            } catch (IllegalStateException e2) {
-                // in tests isInputViewShown returns true, but showWindow throws
-            }
+            mLatinIME.showWindow(true);
+        } catch (IllegalStateException e) {
+            // in tests isInputViewShown returns true, but showWindow throws
         }
     }
 }
