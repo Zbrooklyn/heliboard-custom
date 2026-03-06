@@ -39,8 +39,8 @@ HeliBoard is the engine. WhisperClick is the product.
 | Samsung-style circular toolbar | Done | Expandable with 3-dots overflow |
 | Toolbar / suggestion bar swap | Done | Auto-show when idle, auto-hide when typing |
 | Action bar (edit keys) | Done | Left, right, select all, copy, paste, up, down, close |
-| WhisperClick / Classic settings split | Done | Two sections in main settings |
-| Clipboard settings screen | Done | Extracted from Preferences to own screen |
+| WhisperClick / Classic settings split | Removing | Being replaced with flat list (Phase 1) |
+| Clipboard settings screen | Removing | Being merged back into Keys & Feedback (Phase 1) |
 | Quick Text toolbar key | Done (patchy) | Tap inserts default, long-hold shows popup |
 | Voice AI settings | Done | WhisperFlow integration |
 | Theme & Size settings | Done | Own screen under WhisperClick |
@@ -50,55 +50,67 @@ HeliBoard is the engine. WhisperClick is the product.
 
 ## Settings Architecture
 
-### WhisperClick Section (curated)
+> Full details in `SETTINGS_RESTRUCTURE.md`. Summary here.
 
-| Setting | What it controls | Type |
-|---------|-----------------|------|
-| **Toolbar** | Which icons show in the circular toolbar | Reorderable key list |
-| **Action Bar** | Which keys show in the edit row | Reorderable key list |
-| **Number Row** | Show/hide number row | On/off toggle |
-| **Theme & Size** | Keyboard appearance | Own screen |
-| **Voice AI** | WhisperFlow voice input | Own screen |
-| **Clipboard** | History + Quick Text snippets | Own screen |
+### Philosophy
+
+1. If a normal user wouldn't understand it, move it to Advanced — not delete.
+2. If we picked a look, own it. Don't surface settings that break the design.
+3. Main settings = things people actually change. Niche = collapsible `▶ Advanced` per screen.
+4. Don't disable — relocate. No "Managed by WhisperClick" patterns.
+5. Fewer screens, fewer items per screen.
+6. Don't delete during dev — move to Advanced, cut before launch.
+7. Each screen owns its niche settings in a collapsible section — not one giant Advanced junk drawer.
+
+### Approach: Compact + Collapsible Advanced
+
+No WhisperClick/Classic split. Flat list like original HeliBoard. Each screen shows only
+what normal users change, with niche settings in a collapsible `▶ Advanced` section at
+the bottom. Two fragmented screens (Action Bar, Clipboard) deleted — settings merged back.
+
+### Main Screen (11 entries, flat)
+
+| Screen | Main | Advanced | Notes |
+|--------|------|----------|-------|
+| **Voice & AI** | 10 | — | NEW — only addition over original HeliBoard |
+| **Appearance** | 9 | 16 | Compacted — most-used settings up front |
+| **Toolbar** | 5 | — | On/off toggles for toolbar & action bar |
+| **Typing & Autocorrect** | 14 | 12 | Compacted from ~26 |
+| **Keys & Feedback** | 12 | 13 | Clipboard + number row restored, compacted |
+| **(Swipe Typing)** | 3 | 4 | Conditional |
+| **Languages & Layouts** | — | — | Unchanged |
+| **Secondary Layouts** | — | — | Unchanged |
+| **Dictionaries** | — | — | Unchanged |
+| **Advanced** | ~20 | — | System-level only, NOT a junk drawer |
+| **About** | — | — | Unchanged |
+
+### Toolbar Screen (simplified)
+
+```
+├── [Toolbar]
+│   ├── Show toolbar [on/off switch]
+│   └── (Select toolbar keys)
+├── [Action Bar]
+│   ├── Show action bar [on/off switch]
+│   └── (Select action bar keys)
+└── Custom button actions
+```
+
+Same pattern for both rows. On/off master toggle, pick your keys. One shared key code customizer.
 
 ### Hardcoded Behavior (no user toggles)
 
-These are baked in for WhisperClick. No settings exposed:
+These stay in code with their defaults but are not shown in settings:
 
 | Behavior | Value | Why |
 |----------|-------|-----|
-| Toolbar mode | Expandable | Only mode that makes sense for the layout |
+| Toolbar mode (when on) | TOOLBAR_KEYS | Only mode we use |
 | Auto-show toolbar | On | Toolbar visible when not typing |
 | Auto-hide toolbar | On | Suggestions replace toolbar when typing |
-| Pinned toolbar keys | Disabled | No pinned keys concept — just toolbar + action bar |
-| Quick pin | Off | No long-press-to-pin behavior |
-| Variable toolbar direction | Follows system | No need for user toggle |
-
-### Classic Section (legacy HeliBoard)
-
-Stays as-is for now. Contains every HeliBoard setting. Over time these get:
-
-1. **Phase 1: Disabled** — Toggle grayed out, tooltip says "Managed by WhisperClick"
-2. **Phase 2: Hidden** — Setting removed from Classic UI but code still exists
-3. **Phase 3: Removed** — Code deleted
-
-### Deprecation Schedule
-
-| Setting | Current State | Phase 1 (Disable) | Phase 2+ |
-|---------|--------------|-------------------|----------|
-| Toolbar Mode picker | Active in Classic | Disable — WhisperClick hardcodes Expandable | Hide |
-| Auto Show Toolbar | Active in Classic | Disable — always on | Hide |
-| Auto Hide Toolbar | Active in Classic | Disable — always on | Hide |
-| Quick Pin Toolbar Keys | Active in Classic | Disable — off | Hide |
-| Pinned Toolbar Keys list | Active in Classic | Disable — empty | Hide |
-| Variable Toolbar Direction | Active in Classic | Disable — follows system | Hide |
-| Toolbar Hiding Global | Active in Classic | Disable | Hide |
-
-Settings NOT being deprecated (they live in WhisperClick):
-- Toolbar key list → moves to WhisperClick Toolbar
-- Clipboard toolbar key list → moves to WhisperClick Action Bar
-- Number row toggle → moves to WhisperClick Number Row
-- All Clipboard, Voice AI, Theme & Size settings → already in WhisperClick
+| Pinned toolbar keys | Disabled | No pinned keys — just toolbar + action bar |
+| Quick pin | Off | No long-press-to-pin |
+| Variable toolbar direction | On (default) | RTL support automatic, no toggle needed |
+| Toolbar hiding global | Off | Not relevant with on/off switch |
 
 ---
 
@@ -131,54 +143,41 @@ Settings NOT being deprecated (they live in WhisperClick):
 
 ## Roadmap
 
-### Phase 0 — Audit & Stabilize
-- Fix settings gray screen (startup blocking)
-- Fix QUICK_TEXT default-on migration
-- Review clipboard migration fragility
-- Build disabled preference UI pattern (`enabled: Boolean` on all preference composables)
-- Update documentation
+### Phase 0 — Audit & Stabilize (DONE)
+- ~~Fix settings gray screen~~
+- ~~Fix QUICK_TEXT default-on migration~~
+- ~~Build disabled preference UI pattern~~
+- ~~Update documentation~~
 
-### Phase 1 — Settings Reorganization
-- Simplify Toolbar screen (key list + custom codes only)
-- Create Action Bar screen (edit key list)
-- Add inline Number Row toggle to main screen
-- Disable legacy toolbar toggles (grayed out, "Managed by WhisperClick")
-- Enforce hardcoded defaults (toolbar mode, auto-show/hide, no pinned keys)
+### Phase 1 — Settings Restructure + Quick Text Hardening
+- Create `ExpandableSection` composable for collapsible `▶ Advanced` per screen
+- Compact each screen: main settings up front, niche in collapsible advanced
+- Toolbar: on/off switches for toolbar + action bar, shared key codes
+- Delete Action Bar screen, Clipboard screen
+- Move number row, clipboard history, quick text back to Keys & Feedback
+- Harden Quick Text during move: snippet limits, validation, reordering
+- Fix listener cast workaround (SuggestionStripView.kt — drive-by)
+- Remove WhisperClick/Classic categories from main screen
+- Add PREF_SHOW_ACTION_BAR pref + wire into getActionRow()
+- Rename 22 setting labels in strings.xml for clarity (see `SETTINGS_RESTRUCTURE.md` Label Renames table)
+- Full checklist in `SETTINGS_RESTRUCTURE.md`
 
-### Phase 2 — Harden Existing Features
-- Quick Text: proper popup, haptic feedback, snippet limits, reordering
-- Fix listener cast workaround
+### Phase 2 — Feature Polish
+- Quick Text: proper popup rewrite, haptic feedback
 - Voice input reliability
-
-### Phase 3 — Rewrite Button Integration
 - Wire Rewrite toolbar key to WhisperClick rewrite engine
 - Build rewrite menu panel (like clipboard history)
 - Text selection + replace-in-place
 
-### Phase 4 — Testing & QA
+### Phase 3 — Testing & Security
 - Manual test plan for every feature
 - Edge cases, performance, landscape, RTL, accessibility
-
-### Phase 5 — Deprecation Round 1
-- Hide disabled Classic settings from UI
-- Clean up pinned keys rendering code
-- Consolidate toolbar modes
-
-### Phase 6 — Absorb Classic Features
-- 6A: Input & Feedback → WhisperClick screen
-- 6B: Typing & Autocorrect → WhisperClick screen
-- 6C: Swipe Typing → WhisperClick screen
-- 6D: Languages → WhisperClick screen
-- 6E: Appearance extras → absorb into Theme & Size
-
-### Phase 7 — Security & Privacy
 - Audit autofill/password manager support
 - Authentication code handling
 - Privacy audit
 
-### Phase 8 — Branding & Production
+### Phase 4 — Branding & Production
 - App identity (name, icon, about)
-- Remove or minimize Classic section
 - Final QA + distribution
 
 **Full implementation details:** See plan file or `QUICK_TEXT_TECH_DEBT.md` for technical debt specifics.
@@ -191,7 +190,9 @@ Settings NOT being deprecated (they live in WhisperClick):
 
 Every change should pass these:
 
-1. **Would a normal user understand this setting?** If not, hardcode it or remove it.
+1. **Would a normal user understand this setting?** If not, move it to Advanced — not delete.
 2. **Does this serve the WhisperClick layout?** Toolbar, action bar, number row, keyboard. If it doesn't fit, it doesn't ship.
 3. **Is this robust or a patch?** If it's a patch, document it and plan the real version.
-4. **Does this break Classic?** WhisperClick changes shouldn't break users who stay in Classic settings.
+4. **Main settings = things people actually change.** Everything else goes in collapsible Advanced.
+5. **Don't delete useful settings during dev.** Move to Advanced, decide what to cut before launch. Settings for removed features (deprecated modes, unused toolbar states) stay in code with defaults but don't need UI placement.
+6. **Fewer screens, fewer items per screen.** If a user feels overwhelmed, we failed.

@@ -3,6 +3,16 @@ package helium314.keyboard.settings.screens
 
 import android.content.Context
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -10,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,6 +33,7 @@ import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.getActivity
 import helium314.keyboard.latin.utils.getStringResourceOrName
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.settings.ExpandableSection
 import helium314.keyboard.settings.preferences.ListPreference
 import helium314.keyboard.settings.SettingsWithoutKey
 import helium314.keyboard.settings.Setting
@@ -53,38 +65,69 @@ fun AppearanceScreen(
     if ((b?.value ?: 0) < 0)
         Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
     val dayNightMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && prefs.getBoolean(Settings.PREF_THEME_DAY_NIGHT, Defaults.PREF_THEME_DAY_NIGHT)
-    val items = listOf(
-        // Colors
-        R.string.settings_screen_theme,
-        Settings.PREF_THEME_STYLE,
-        Settings.PREF_THEME_COLORS,
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            Settings.PREF_THEME_DAY_NIGHT else null,
-        if (dayNightMode) Settings.PREF_THEME_COLORS_NIGHT else null,
-        Settings.PREF_NAVBAR_COLOR,
-        // Style
-        Settings.PREF_THEME_KEY_BORDERS,
-        if (prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS))
-            Settings.PREF_NARROW_KEY_GAPS else null,
-        // Icons
-        Settings.PREF_ICON_STYLE,
-        Settings.PREF_CUSTOM_ICON_NAMES,
-        // Background
-        SettingsWithoutKey.BACKGROUND_IMAGE,
-        SettingsWithoutKey.BACKGROUND_IMAGE_LANDSCAPE,
-        // Size
-        R.string.settings_category_size,
-        Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX,
-        Settings.PREF_BOTTOM_PADDING_SCALE_PREFIX,
-        Settings.PREF_FONT_SCALE,
-        // Reset
-        SettingsWithoutKey.RESET_LAYOUT,
-    )
+    val keyBordersOn = prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS)
+    val splitEnabled = prefs.getBoolean(Settings.PREF_ENABLE_SPLIT_KEYBOARD, Defaults.PREF_ENABLE_SPLIT_KEYBOARD)
+            || prefs.getBoolean(Settings.PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE, Defaults.PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE)
     SearchSettingsScreen(
         onClickBack = onClickBack,
         title = stringResource(R.string.settings_screen_appearance),
-        settings = items
+        settings = emptyList(),
+        content = {
+            Scaffold(
+                contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+            ) { innerPadding ->
+                Column(
+                    Modifier
+                        .verticalScroll(rememberScrollState())
+                        .then(Modifier.padding(innerPadding))
+                ) {
+                    // === Main Settings ===
+                    RenderSetting(Settings.PREF_THEME_COLORS)
+                    AnimatedVisibility(visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        Column { RenderSetting(Settings.PREF_THEME_DAY_NIGHT) }
+                    }
+                    AnimatedVisibility(visible = dayNightMode) {
+                        Column { RenderSetting(Settings.PREF_THEME_COLORS_NIGHT) }
+                    }
+                    RenderSetting(Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX)
+                    RenderSetting(Settings.PREF_BOTTOM_PADDING_SCALE_PREFIX)
+                    RenderSetting(Settings.PREF_FONT_SCALE)
+                    RenderSetting(Settings.PREF_SPACE_BAR_TEXT)
+                    RenderSetting(Settings.PREF_EMOJI_SKIN_TONE)
+                    RenderSetting(SettingsWithoutKey.RESET_LAYOUT)
+
+                    // === Collapsible Advanced ===
+                    ExpandableSection {
+                        RenderSetting(Settings.PREF_THEME_STYLE)
+                        RenderSetting(Settings.PREF_ICON_STYLE)
+                        RenderSetting(Settings.PREF_CUSTOM_ICON_NAMES)
+                        RenderSetting(Settings.PREF_THEME_KEY_BORDERS)
+                        AnimatedVisibility(visible = keyBordersOn) {
+                            Column { RenderSetting(Settings.PREF_NARROW_KEY_GAPS) }
+                        }
+                        RenderSetting(Settings.PREF_NAVBAR_COLOR)
+                        RenderSetting(SettingsWithoutKey.BACKGROUND_IMAGE)
+                        RenderSetting(SettingsWithoutKey.BACKGROUND_IMAGE_LANDSCAPE)
+                        RenderSetting(Settings.PREF_ENABLE_SPLIT_KEYBOARD)
+                        RenderSetting(Settings.PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE)
+                        AnimatedVisibility(visible = splitEnabled) {
+                            Column { RenderSetting(Settings.PREF_SPLIT_SPACER_SCALE_PREFIX) }
+                        }
+                        RenderSetting(Settings.PREF_SIDE_PADDING_SCALE_PREFIX)
+                        RenderSetting(SettingsWithoutKey.CUSTOM_FONT)
+                        RenderSetting(SettingsWithoutKey.CUSTOM_EMOJI_FONT)
+                        RenderSetting(Settings.PREF_EMOJI_FONT_SCALE)
+                        RenderSetting(Settings.PREF_EMOJI_KEY_FIT)
+                    }
+                }
+            }
+        }
     )
+}
+
+@Composable
+private fun RenderSetting(key: String) {
+    SettingsActivity.settingsContainer[key]?.Preference()
 }
 
 fun createAppearanceSettings(context: Context) = listOf(

@@ -6,6 +6,16 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,6 +40,7 @@ import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.ToolbarMode
 import helium314.keyboard.latin.utils.getActivity
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.settings.ExpandableSection
 import helium314.keyboard.settings.NextScreenIcon
 import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.Setting
@@ -40,6 +52,7 @@ import helium314.keyboard.settings.dialogs.ConfirmationDialog
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.preferences.ListPreference
 import helium314.keyboard.settings.preferences.Preference
+import helium314.keyboard.settings.preferences.PreferenceCategory
 import helium314.keyboard.settings.preferences.SwitchPreference
 import helium314.keyboard.settings.preferences.SwitchPreferenceWithEmojiDictWarning
 import helium314.keyboard.settings.previewDark
@@ -57,44 +70,93 @@ fun TextCorrectionScreen(
     val suggestionsVisible = Settings.readToolbarMode(prefs) in setOf(ToolbarMode.SUGGESTION_STRIP, ToolbarMode.EXPANDABLE)
     val suggestionsEnabled = suggestionsVisible && prefs.getBoolean(Settings.PREF_SHOW_SUGGESTIONS, Defaults.PREF_SHOW_SUGGESTIONS)
     val gestureEnabled = JniUtils.sHaveGestureLib && prefs.getBoolean(Settings.PREF_GESTURE_INPUT, Defaults.PREF_GESTURE_INPUT)
-    val items = listOf(
-        SettingsWithoutKey.EDIT_PERSONAL_DICTIONARY,
-        R.string.settings_category_correction,
-        Settings.PREF_BLOCK_POTENTIALLY_OFFENSIVE,
-        Settings.PREF_AUTO_CORRECTION,
-        if (autocorrectEnabled) Settings.PREF_MORE_AUTO_CORRECTION else null,
-        if (autocorrectEnabled) Settings.PREF_AUTOCORRECT_SHORTCUTS else null,
-        if (autocorrectEnabled) Settings.PREF_AUTO_CORRECT_THRESHOLD else null,
-        if (autocorrectEnabled) Settings.PREF_BACKSPACE_REVERTS_AUTOCORRECT else null,
-        Settings.PREF_AUTO_CAP,
-        R.string.settings_category_space,
-        Settings.PREF_KEY_USE_DOUBLE_SPACE_PERIOD,
-        Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION,
-        Settings.PREF_AUTOSPACE_AFTER_SUGGESTION,
-        if (gestureEnabled) Settings.PREF_AUTOSPACE_BEFORE_GESTURE_TYPING else null,
-        if (gestureEnabled) Settings.PREF_AUTOSPACE_AFTER_GESTURE_TYPING else null,
-        Settings.PREF_SHIFT_REMOVES_AUTOSPACE,
-        R.string.settings_category_suggestions,
-        if (suggestionsVisible) Settings.PREF_SHOW_SUGGESTIONS else null,
-        if (suggestionsEnabled) Settings.PREF_ALWAYS_SHOW_SUGGESTIONS else null,
-        if (suggestionsEnabled && prefs.getBoolean(Settings.PREF_ALWAYS_SHOW_SUGGESTIONS, Defaults.PREF_ALWAYS_SHOW_SUGGESTIONS))
-            Settings.PREF_ALWAYS_SHOW_SUGGESTIONS_EXCEPT_WEB_TEXT else null,
-        if (suggestionsEnabled) Settings.PREF_CENTER_SUGGESTION_TEXT_TO_ENTER else null,
-        if (suggestionsEnabled || autocorrectEnabled) Settings.PREF_SUGGEST_EMOJIS else null,
-        if (suggestionsEnabled || autocorrectEnabled) Settings.PREF_INLINE_EMOJI_SEARCH else null,
-        Settings.PREF_KEY_USE_PERSONALIZED_DICTS,
-        Settings.PREF_BIGRAM_PREDICTIONS,
-        Settings.PREF_SUGGEST_PUNCTUATION,
-        Settings.PREF_SUGGEST_CLIPBOARD_CONTENT,
-        Settings.PREF_USE_CONTACTS,
-        Settings.PREF_USE_APPS,
-        if (prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS))
-            Settings.PREF_ADD_TO_PERSONAL_DICTIONARY else null
-    )
+    val personalizedDictsEnabled = prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS)
+
     SearchSettingsScreen(
         onClickBack = onClickBack,
         title = stringResource(R.string.settings_screen_correction),
-        settings = items
+        settings = emptyList(),
+        content = {
+            Scaffold(
+                contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+            ) { innerPadding ->
+                Column(
+                    Modifier
+                        .verticalScroll(rememberScrollState())
+                        .then(Modifier.padding(innerPadding))
+                ) {
+                    // === Main Settings ===
+
+                    SettingsActivity.settingsContainer[SettingsWithoutKey.EDIT_PERSONAL_DICTIONARY]?.Preference()
+
+                    PreferenceCategory(stringResource(R.string.settings_category_correction))
+                    SettingsActivity.settingsContainer[Settings.PREF_AUTO_CORRECTION]?.Preference()
+                    AnimatedVisibility(visible = autocorrectEnabled) {
+                        Column { SettingsActivity.settingsContainer[Settings.PREF_BACKSPACE_REVERTS_AUTOCORRECT]?.Preference() }
+                    }
+                    SettingsActivity.settingsContainer[Settings.PREF_AUTO_CAP]?.Preference()
+                    SettingsActivity.settingsContainer[Settings.PREF_BLOCK_POTENTIALLY_OFFENSIVE]?.Preference()
+
+                    PreferenceCategory(stringResource(R.string.settings_category_space))
+                    SettingsActivity.settingsContainer[Settings.PREF_KEY_USE_DOUBLE_SPACE_PERIOD]?.Preference()
+                    SettingsActivity.settingsContainer[Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION]?.Preference()
+
+                    PreferenceCategory(stringResource(R.string.settings_category_suggestions))
+                    AnimatedVisibility(visible = suggestionsVisible) {
+                        Column { SettingsActivity.settingsContainer[Settings.PREF_SHOW_SUGGESTIONS]?.Preference() }
+                    }
+                    AnimatedVisibility(visible = suggestionsEnabled || autocorrectEnabled) {
+                        Column { SettingsActivity.settingsContainer[Settings.PREF_SUGGEST_EMOJIS]?.Preference() }
+                    }
+                    AnimatedVisibility(visible = suggestionsEnabled || autocorrectEnabled) {
+                        Column { SettingsActivity.settingsContainer[Settings.PREF_INLINE_EMOJI_SEARCH]?.Preference() }
+                    }
+                    SettingsActivity.settingsContainer[Settings.PREF_KEY_USE_PERSONALIZED_DICTS]?.Preference()
+                    SettingsActivity.settingsContainer[Settings.PREF_SUGGEST_CLIPBOARD_CONTENT]?.Preference()
+                    SettingsActivity.settingsContainer[Settings.PREF_USE_CONTACTS]?.Preference()
+                    SettingsActivity.settingsContainer[Settings.PREF_USE_APPS]?.Preference()
+
+                    // === Collapsible Advanced ===
+
+                    ExpandableSection {
+                        AnimatedVisibility(visible = autocorrectEnabled) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_MORE_AUTO_CORRECTION]?.Preference() }
+                        }
+                        AnimatedVisibility(visible = autocorrectEnabled) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_AUTOCORRECT_SHORTCUTS]?.Preference() }
+                        }
+                        AnimatedVisibility(visible = autocorrectEnabled) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_AUTO_CORRECT_THRESHOLD]?.Preference() }
+                        }
+                        SettingsActivity.settingsContainer[Settings.PREF_AUTOSPACE_AFTER_SUGGESTION]?.Preference()
+                        AnimatedVisibility(visible = gestureEnabled) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_AUTOSPACE_BEFORE_GESTURE_TYPING]?.Preference() }
+                        }
+                        AnimatedVisibility(visible = gestureEnabled) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_AUTOSPACE_AFTER_GESTURE_TYPING]?.Preference() }
+                        }
+                        SettingsActivity.settingsContainer[Settings.PREF_SHIFT_REMOVES_AUTOSPACE]?.Preference()
+                        AnimatedVisibility(visible = suggestionsEnabled) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_ALWAYS_SHOW_SUGGESTIONS]?.Preference() }
+                        }
+                        AnimatedVisibility(
+                            visible = suggestionsEnabled
+                                    && prefs.getBoolean(Settings.PREF_ALWAYS_SHOW_SUGGESTIONS, Defaults.PREF_ALWAYS_SHOW_SUGGESTIONS)
+                        ) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_ALWAYS_SHOW_SUGGESTIONS_EXCEPT_WEB_TEXT]?.Preference() }
+                        }
+                        AnimatedVisibility(visible = suggestionsEnabled) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_CENTER_SUGGESTION_TEXT_TO_ENTER]?.Preference() }
+                        }
+                        SettingsActivity.settingsContainer[Settings.PREF_BIGRAM_PREDICTIONS]?.Preference()
+                        SettingsActivity.settingsContainer[Settings.PREF_SUGGEST_PUNCTUATION]?.Preference()
+                        AnimatedVisibility(visible = personalizedDictsEnabled) {
+                            Column { SettingsActivity.settingsContainer[Settings.PREF_ADD_TO_PERSONAL_DICTIONARY]?.Preference() }
+                        }
+                    }
+                }
+            }
+        }
     )
 }
 

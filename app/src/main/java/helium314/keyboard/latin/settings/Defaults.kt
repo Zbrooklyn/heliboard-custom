@@ -177,6 +177,9 @@ object Defaults {
     const val PREF_USER_ALL_COLORS = ""
     const val PREF_SAVE_SUBTYPE_PER_APP = false
 
+    // Action bar
+    const val PREF_SHOW_ACTION_BAR = true
+
     // AI / Voice defaults
     const val PREF_AI_PROVIDER = "gemini"  // "gemini" or "openai"
     const val PREF_GEMINI_API_KEY = ""

@@ -31,8 +31,6 @@ import helium314.keyboard.settings.screens.PreferencesScreen
 import helium314.keyboard.settings.screens.SecondaryLayoutScreen
 import helium314.keyboard.settings.screens.SubtypeScreen
 import helium314.keyboard.settings.screens.TextCorrectionScreen
-import helium314.keyboard.settings.screens.ActionBarScreen
-import helium314.keyboard.settings.screens.ClipboardSettingsScreen
 import helium314.keyboard.settings.screens.ToolbarScreen
 import helium314.keyboard.settings.screens.VoiceAIScreen
 import helium314.keyboard.settings.screens.gesturedata.GestureDataScreen
@@ -81,19 +79,11 @@ fun SettingsNavHost(
                 onClickLayouts = { navController.navigate(SettingsDestination.Layouts) },
                 onClickDictionaries = { navController.navigate(SettingsDestination.Dictionaries) },
                 onClickVoiceAI = { navController.navigate(SettingsDestination.VoiceAI) },
-                onClickActionBar = { navController.navigate(SettingsDestination.ActionBar) },
-                onClickClipboard = { navController.navigate(SettingsDestination.Clipboard) },
                 onClickBack = ::goBack,
             )
         }
         composable(SettingsDestination.VoiceAI) {
             VoiceAIScreen(onClickBack = ::goBack)
-        }
-        composable(SettingsDestination.ActionBar) {
-            ActionBarScreen(onClickBack = ::goBack)
-        }
-        composable(SettingsDestination.Clipboard) {
-            ClipboardSettingsScreen(onClickBack = ::goBack)
         }
         composable(SettingsDestination.About) {
             AboutScreen(onClickBack = ::goBack)
@@ -180,8 +170,6 @@ object SettingsDestination {
     const val Layouts = "layouts"
     const val Dictionaries = "dictionaries"
     const val VoiceAI = "voice_ai"
-    const val ActionBar = "action_bar"
-    const val Clipboard = "clipboard"
     val navTarget = MutableStateFlow(Settings)
 
     private val navScope = CoroutineScope(Dispatchers.Default)

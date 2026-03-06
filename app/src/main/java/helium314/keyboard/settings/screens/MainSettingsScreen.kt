@@ -16,10 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
-import helium314.keyboard.latin.settings.Defaults
-import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.JniUtils
 import helium314.keyboard.latin.utils.SubtypeLocaleUtils.displayName
 import helium314.keyboard.latin.utils.SubtypeSettings
@@ -28,8 +25,6 @@ import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.Theme
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.preferences.Preference
-import helium314.keyboard.settings.preferences.PreferenceCategory
-import helium314.keyboard.settings.preferences.SwitchPreference
 import helium314.keyboard.settings.previewDark
 import helium314.keyboard.settings.screens.gesturedata.END_DATE_EPOCH_MILLIS
 import helium314.keyboard.settings.screens.gesturedata.TWO_WEEKS_IN_MILLIS
@@ -48,8 +43,6 @@ fun MainSettingsScreen(
     onClickLayouts: () -> Unit,
     onClickDictionaries: () -> Unit,
     onClickVoiceAI: () -> Unit,
-    onClickActionBar: () -> Unit,
-    onClickClipboard: () -> Unit,
     onClickBack: () -> Unit,
 ) {
     SearchSettingsScreen(
@@ -62,8 +55,6 @@ fun MainSettingsScreen(
             Column(
                 Modifier.verticalScroll(rememberScrollState()).then(Modifier.padding(innerPadding))
             ) {
-                // ── WhisperClick (new/redesigned settings) ──
-                PreferenceCategory(stringResource(R.string.settings_category_whisperclick))
                 Preference(
                     name = stringResource(R.string.settings_screen_voice_ai),
                     onClick = onClickVoiceAI,
@@ -75,30 +66,6 @@ fun MainSettingsScreen(
                     icon = R.drawable.ic_settings_appearance
                 ) { NextScreenIcon() }
                 Preference(
-                    name = stringResource(R.string.settings_screen_toolbar),
-                    onClick = onClickToolbar,
-                    icon = R.drawable.ic_settings_toolbar
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_action_bar),
-                    description = stringResource(R.string.action_bar_summary),
-                    onClick = onClickActionBar,
-                    icon = R.drawable.ic_settings_toolbar
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_clipboard),
-                    onClick = onClickClipboard,
-                    icon = R.drawable.sym_keyboard_clipboard_holo
-                ) { NextScreenIcon() }
-                SwitchPreference(
-                    name = stringResource(R.string.number_row),
-                    key = Settings.PREF_SHOW_NUMBER_ROW,
-                    default = Defaults.PREF_SHOW_NUMBER_ROW,
-                ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
-
-                // ── Classic Settings (legacy HeliBoard) ──
-                PreferenceCategory(stringResource(R.string.settings_category_classic))
-                Preference(
                     name = stringResource(R.string.language_and_layouts_title),
                     description = enabledSubtypes.joinToString(", ") { it.displayName() },
                     onClick = onClickLanguage,
@@ -109,24 +76,28 @@ fun MainSettingsScreen(
                     onClick = onClickTextCorrection,
                     icon = R.drawable.ic_settings_correction
                 ) { NextScreenIcon() }
+                Preference(
+                    name = stringResource(R.string.settings_screen_preferences),
+                    onClick = onClickPreferences,
+                    icon = R.drawable.ic_settings_preferences
+                ) { NextScreenIcon() }
+                Preference(
+                    name = stringResource(R.string.settings_screen_toolbar),
+                    onClick = onClickToolbar,
+                    icon = R.drawable.ic_settings_toolbar
+                ) { NextScreenIcon() }
                 if (JniUtils.sHaveGestureLib)
                     Preference(
                         name = stringResource(R.string.settings_screen_gesture),
                         onClick = onClickGestureTyping,
                         icon = R.drawable.ic_settings_gesture
                     ) { NextScreenIcon() }
-                // we don't even show the menu if data gathering phase ended more than 2 weeks ago
                 if (JniUtils.sHaveGestureLib && System.currentTimeMillis() < END_DATE_EPOCH_MILLIS + TWO_WEEKS_IN_MILLIS)
                     Preference(
                         name = stringResource(R.string.gesture_data_screen),
                         onClick = onClickDataGathering,
                         icon = R.drawable.ic_settings_gesture
                     ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_preferences),
-                    onClick = onClickPreferences,
-                    icon = R.drawable.ic_settings_preferences
-                ) { NextScreenIcon() }
                 Preference(
                     name = stringResource(R.string.settings_screen_secondary_layouts),
                     onClick = onClickLayouts,
@@ -158,7 +129,7 @@ private fun PreviewScreen() {
     initPreview(LocalContext.current)
     Theme(previewDark) {
         Surface {
-            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 }

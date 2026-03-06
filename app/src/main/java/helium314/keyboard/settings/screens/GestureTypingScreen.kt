@@ -2,9 +2,20 @@
 package helium314.keyboard.settings.screens
 
 import android.content.Context
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -16,6 +27,7 @@ import helium314.keyboard.latin.utils.JniUtils
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.getActivity
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.settings.ExpandableSection
 import helium314.keyboard.settings.Setting
 import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.SettingsActivity
@@ -34,28 +46,53 @@ fun GestureTypingScreen(
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
         Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
-    val gestureFloatingPreviewEnabled = prefs.getBoolean(Settings.PREF_GESTURE_FLOATING_PREVIEW_TEXT, Defaults.PREF_GESTURE_FLOATING_PREVIEW_TEXT)
     val gestureEnabled = prefs.getBoolean(Settings.PREF_GESTURE_INPUT, Defaults.PREF_GESTURE_INPUT)
-    val items = listOf(
-        Settings.PREF_GESTURE_INPUT,
-        if (gestureEnabled)
-            Settings.PREF_GESTURE_PREVIEW_TRAIL else null,
-        if (gestureEnabled)
-            Settings.PREF_GESTURE_FLOATING_PREVIEW_TEXT else null,
-        if (gestureEnabled && gestureFloatingPreviewEnabled)
-            Settings.PREF_GESTURE_FLOATING_PREVIEW_DYNAMIC else null,
-        if (gestureEnabled)
-            Settings.PREF_GESTURE_SPACE_AWARE else null,
-        if (gestureEnabled)
-            Settings.PREF_GESTURE_FAST_TYPING_COOLDOWN else null,
-        if (gestureEnabled &&
-            (prefs.getBoolean(Settings.PREF_GESTURE_PREVIEW_TRAIL, Defaults.PREF_GESTURE_PREVIEW_TRAIL) || gestureFloatingPreviewEnabled))
-            Settings.PREF_GESTURE_TRAIL_FADEOUT_DURATION else null
-        )
+    val gestureFloatingPreviewEnabled = prefs.getBoolean(Settings.PREF_GESTURE_FLOATING_PREVIEW_TEXT, Defaults.PREF_GESTURE_FLOATING_PREVIEW_TEXT)
+    val gestureTrailEnabled = prefs.getBoolean(Settings.PREF_GESTURE_PREVIEW_TRAIL, Defaults.PREF_GESTURE_PREVIEW_TRAIL)
     SearchSettingsScreen(
         onClickBack = onClickBack,
         title = stringResource(R.string.settings_screen_gesture),
-        settings = items
+        settings = emptyList(),
+        content = {
+            Scaffold(
+                contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+            ) { innerPadding ->
+                Column(
+                    Modifier
+                        .verticalScroll(rememberScrollState())
+                        .then(Modifier.padding(innerPadding))
+                ) {
+                    // === Main Settings ===
+                    SettingsActivity.settingsContainer[Settings.PREF_GESTURE_INPUT]?.Preference()
+                    AnimatedVisibility(visible = gestureEnabled) {
+                        Column {
+                            SettingsActivity.settingsContainer[Settings.PREF_GESTURE_PREVIEW_TRAIL]?.Preference()
+                            SettingsActivity.settingsContainer[Settings.PREF_GESTURE_FLOATING_PREVIEW_TEXT]?.Preference()
+                        }
+                    }
+
+                    // === Collapsible Advanced ===
+                    AnimatedVisibility(visible = gestureEnabled) {
+                        Column {
+                            ExpandableSection {
+                                AnimatedVisibility(visible = gestureFloatingPreviewEnabled) {
+                                    Column {
+                                        SettingsActivity.settingsContainer[Settings.PREF_GESTURE_FLOATING_PREVIEW_DYNAMIC]?.Preference()
+                                    }
+                                }
+                                SettingsActivity.settingsContainer[Settings.PREF_GESTURE_SPACE_AWARE]?.Preference()
+                                SettingsActivity.settingsContainer[Settings.PREF_GESTURE_FAST_TYPING_COOLDOWN]?.Preference()
+                                AnimatedVisibility(visible = gestureTrailEnabled || gestureFloatingPreviewEnabled) {
+                                    Column {
+                                        SettingsActivity.settingsContainer[Settings.PREF_GESTURE_TRAIL_FADEOUT_DURATION]?.Preference()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     )
 }
 

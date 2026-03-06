@@ -44,9 +44,6 @@
     <string name="settings_screen_advanced">Advanced</string>
     <!-- Settings screen title for voice and AI settings -->
     <string name="settings_screen_voice_ai">Voice &amp; AI</string>
-    <string name="settings_screen_clipboard">Clipboard</string>
-    <string name="settings_category_whisperclick">WhisperClick</string>
-    <string name="settings_category_classic">Classic Settings</string>
     <string name="voice_ai_stt_mode">Speech-to-text mode</string>
     <string name="voice_ai_stt_mode_summary">Choose local (offline), cloud (OpenAI), or Google on-device transcription</string>
     <string name="voice_ai_stt_local">Local (offline)</string>
@@ -140,7 +137,6 @@
     <!-- Settings category title for Appearance & Layout/Misc -->
     <string name="settings_category_miscellaneous">Miscellaneous</string>
     <string name="settings_category_size">Size</string>
-    <string name="settings_category_customization">Customization</string>
     <string name="clipboard_retention_10min">10 minutes</string>
     <string name="clipboard_retention_1hour">1 hour</string>
     <string name="clipboard_retention_24hours">24 hours</string>
@@ -149,7 +145,7 @@
     <!--  Option for enabling or disabling the split keyboard layout in landscape mode.-->
     <string name="enable_split_keyboard_landscape">Enable split keyboard (landscape)</string>
     <!--  Option for setting distance for split keyboard in portrait mode -->
-    <string name="split_spacer_scale">Split distance</string>
+    <string name="split_spacer_scale">Split keyboard gap size</string>
     <!-- Option name for including other IMEs in the language key switch list -->
     <string name="language_switch_key_switch_input_method">Switch to other input methods</string>
     <!-- Option name for switching language / subtype only -->
@@ -175,7 +171,7 @@
     <!-- Description for option enabling or disabling the use of names of people in Contacts for suggestion and correction -->
     <string name="use_contacts_dict_summary">Use names from Contacts for suggestions and corrections</string>
     <!-- Option name for enabling or disabling the use of installed app names for suggestion and correction -->
-    <string name="use_apps_dict">Look up app names</string>
+    <string name="use_apps_dict">App-based suggestions</string>
     <!-- Description for option enabling or disabling the use of installed app names for suggestion and correction -->
     <string name="use_apps_dict_summary">Use names of installed apps for suggestions and corrections</string>
     <!-- Option name for enabling the use by the keyboards of sent/received messages, e-mail and typing history to improve suggestion accuracy -->
@@ -219,13 +215,13 @@
     <!-- Description for auto correction -->
     <string name="auto_correction_summary">Spacebar and punctuation automatically correct mistyped words</string>
     <!-- Option to enable auto correction for many fields that do not request auto correction -->
-    <string name="more_autocorrect">More auto-correction</string>
+    <string name="more_autocorrect">Aggressive auto-correction</string>
     <!-- Description for more_autocorrect -->
     <string name="more_autocorrect_summary">Auto-correct even when not explicitly requested by the input field</string>
     <!-- Option to change the confidence level of the auto correction -->
-    <string name="auto_correction_confidence">Auto-correction confidence</string>
+    <string name="auto_correction_confidence">Correction threshold</string>
     <!-- Option to enable auto correction for shortcuts (will correct shortcut to the actual word) -->
-    <string name="auto_correct_shortcuts">Auto-correct shortcuts</string>
+    <string name="auto_correct_shortcuts">Expand text shortcuts</string>
     <!-- Description for auto_correct_shortcuts -->
     <string name="auto_correct_shortcuts_summary">When enabled shortcuts might be expanded by autocorrect</string>
     <!-- Option to undo auto correction with backspace -->
@@ -265,7 +261,7 @@
     <!-- Description for "gesture_floating_preview_static" option. The user can see a suggested word floating above the keyboard during a gesture input.-->
     <string name="gesture_floating_preview_static_summary">See the suggested word while gesturing</string>
     <!-- Option to enable gesture dynamic floating preview. The user can see a suggested word floating above the moving finger during a gesture input.-->
-    <string name="gesture_floating_preview_text">Dynamic floating preview</string>
+    <string name="gesture_floating_preview_text">Animated floating preview</string>
     <!-- Description for "gesture_floating_preview_text" option. The user can see a suggested word floating above the moving finger during a gesture input.-->
     <string name="gesture_floating_preview_dynamic_summary">Move the preview during a gesture</string>
     <!-- Option to enable space aware gesture input. The user can input multiple words by gliding through the space key during a gesture input.-->
@@ -273,7 +269,7 @@
     <!-- Description for "gesture_space_aware" option. The user can input multiple words by gliding through the space key during a gesture input.-->
     <string name="gesture_space_aware_summary">Input spaces during gestures by gliding to the space key</string>
     <!-- Title of the setting to adjust the fast-typing gesture cooldown-->
-    <string name="gesture_fast_typing_cooldown">Rapid typing cooldown</string>
+    <string name="gesture_fast_typing_cooldown">Pause before next gesture</string>
     <!-- The text that represents no cooldown-->
     <string name="gesture_fast_typing_cooldown_instant">Always start instantly</string>
     <!-- Title of the setting to adjust the gesture trail fadeout duration-->
@@ -295,8 +291,7 @@
     <string name="quick_text_hint">Enter text…</string>
     <string name="settings_category_quick_text">Quick text</string>
     <string name="managed_by_whisperclick">Managed by WhisperClick</string>
-    <string name="settings_screen_action_bar">Action Bar</string>
-    <string name="action_bar_summary">Edit keys shown below the toolbar</string>
+    <string name="show_action_bar">Show action bar</string>
     <!-- Preferences item for enabling swipe deletion -->
     <string name="delete_swipe">Delete swipe</string>
     <!-- Description for "delete_swipe" option. -->
@@ -351,7 +346,7 @@
     <!-- Description for "autospace_after_punctuation" setting -->
     <string name="shift_removes_autospace_summary">Shift removes pending autospace</string>
     <!-- Preferences item for showing popup keys in long-press popup -->
-    <string name="show_popup_keys_title">Show more letters with diacritics in popup</string>
+    <string name="show_popup_keys_title">Extra long-press characters</string>
     <!-- Option for showing only letters defined in the current language file in long-press popup -->
     <string name="show_popup_keys_normal">Show variants defined in keyboard languages</string>
     <!-- Option for showing letters common in foreign word (previous default in many language files) -->
@@ -379,7 +374,7 @@
     <!-- Title of the setting to replace the top row in symbols layout with number row -->
     <string name="number_row_in_symbols">Show number row in symbols view</string>
     <!-- Title of the setting to localize number row -->
-    <string name="localized_number_row">Localize number row</string>
+    <string name="localized_number_row">Language-specific numbers</string>
     <!-- Description of the settings to localize number row -->
     <string name="localized_number_row_summary">Prefer localized over latin numbers</string>
     <!-- Title of the setting to enable number row hints -->
@@ -393,11 +388,11 @@
     <!-- Preferences item to set popup key order and select hints source -->
     <string name="popup_order_and_hint_source">Popup key order and hints source</string>
     <!-- Title of the setting to select key hints source -->
-    <string name="hint_source">Select hint source</string>
+    <string name="hint_source">Hint characters from</string>
     <!-- Title of the setting to set popup key order -->
-    <string name="popup_order">Select popup key order</string>
+    <string name="popup_order">Long-press popup order</string>
     <!-- Title of the setting to show TLD popup keys -->
-    <string name="show_tld_popup_keys">Show TLD popup keys</string>
+    <string name="show_tld_popup_keys">Show .com/.org keys</string>
     <!-- Description of the setting to show TLD popup keys -->
     <string name="show_tld_popup_keys_summary">Replace period key popups with top level domains when typing URLs and email addresses</string>
     <!-- Names of the popup key classes -->
@@ -406,6 +401,7 @@
     <string name="popup_keys_language_priority" tools:keep="@string/popup_keys_language_priority">Language (priority)</string>
     <string name="popup_keys_layout" tools:keep="@string/popup_keys_layout">Layout</string>
     <string name="popup_keys_symbols" tools:keep="@string/popup_keys_symbols">Symbols</string>
+    <string name="show_toolbar">Show toolbar</string>
     <!-- Title of the setting to set the toolbar mode -->
     <string name="toolbar_mode">Toolbar mode</string>
     <!-- Option to set the toolbar mode to show an expandable toolbar -->
@@ -459,7 +455,7 @@
     <!-- Description of the setting to quick-pin toolbar keys -->
     <string name="quick_pin_toolbar_keys_summary">This will disable other long press actions for toolbar keys that are not pinned</string>
     <!-- Title of the setting to show "..." as hints for more functionality on long-press -->
-    <string name="show_popup_hints">Show functional hints</string>
+    <string name="show_popup_hints">Show shift/delete hints</string>
     <!-- Description of the show_popup_hints setting -->
     <string name="show_popup_hints_summary">Show hints if long-pressing a key triggers additional functionality</string>
     <!-- Option to remove popup keys that already exist on the base keyboard -->
@@ -473,7 +469,7 @@
     <!-- Title of the setting enabling long press on symbols key to switch to numpad -->
     <string name="prefs_long_press_symbol_for_numpad">Long press symbols key for numpad</string>
     <!-- Title of the setting for reduced distance between keys -->
-    <string name="prefs_narrow_key_gaps">Narrow key gaps</string>
+    <string name="prefs_narrow_key_gaps">Reduce gaps between keys</string>
     <!-- Title of the setting for setting keyboard height -->
     <string name="prefs_keyboard_height_scale">Keyboard height scale</string>
     <!-- Accessibility: drag handle to resize keyboard -->
@@ -487,21 +483,21 @@
     <string name="height_preset_large">Large</string>
     <string name="height_preset_custom">Custom</string>
     <!-- Title of the setting for setting bottom padding height -->
-    <string name="prefs_bottom_padding_scale">Bottom padding scale</string>
+    <string name="prefs_bottom_padding_scale">Space below keyboard</string>
     <!-- Title of the setting for setting side padding -->
-    <string name="prefs_side_padding_scale">Side padding scale</string>
+    <string name="prefs_side_padding_scale">Space on sides</string>
     <!-- Title of the setting for adjusting font size on the keyboard -->
     <string name="prefs_font_scale">Keyboard font scale</string>
     <!-- Title of the setting for adjusting font size in emoji view -->
     <string name="prefs_emoji_font_scale">Emoji view font scale</string>
     <!-- Title of the setting for adjusting emoji key size to fit emoji size in emoji view -->
-    <string name="prefs_emoji_key_fit">Scale emoji key size with font size</string>
+    <string name="prefs_emoji_key_fit">Fit emoji to key size</string>
     <!-- Title of the setting for setting default emoji skin tone -->
     <string name="prefs_emoji_skin_tone">Default emoji skin tone</string>
     <!-- Name of the neutral / yellow skin tone -->
     <string name="prefs_emoji_skin_tone_neutral">Neutral</string>
     <!-- Title of the setting for customizing space bar text -->
-    <string name="prefs_space_bar_text">Custom text on space bar</string>
+    <string name="prefs_space_bar_text">Space bar label</string>
     <!-- Title of the setting for adding / removing custom font file -->
     <string name="custom_font">Set custom font from file</string>
     <!-- Title of the setting for adding / removing custom font file used only for emojis -->
@@ -668,7 +664,7 @@ language, hence "No language". -->
     <!-- Title of the setting for key long press delay -->
     <string name="prefs_key_longpress_timeout_settings">Key long press delay</string>
     <!-- Title of the setting for overriding Android SDK level for showing emojis -->
-    <string name="prefs_key_emoji_max_sdk">Override Emoji version</string>
+    <string name="prefs_key_emoji_max_sdk">Emoji compatibility level</string>
     <!-- Title of the setting for enabling Emoji palette triggered by the Alt key on physical keyboards -->
     <string name="prefs_enable_emoji_alt_physical_key">Emoji for physical keyboard</string>
     <!-- Description of the settings for enabling Emoji palette triggered by the Alt key on physical keyboards -->
@@ -774,7 +770,7 @@ New dictionary:
     <!-- User dictionary settings. Text button to add a word -->
     <string name="user_dict_add_word_button">Add a word</string>
     <!-- Option for choosing theme style -->
-    <string name="theme_style">Style</string>
+    <string name="theme_style">Theme style</string>
     <!-- Option for choosing icon style (same options as theme_style) -->
     <string name="icon_style">Icon style</string>
     <!-- Style name for Rounded style -->
@@ -790,7 +786,7 @@ New dictionary:
     <!-- Description for "day_night_mode" option. -->
     <string name="day_night_mode_summary">Appearance will follow system settings</string>
     <!-- Option for setting navbar to follow keyboard color -->
-    <string name="theme_navbar">Color navigation bar</string>
+    <string name="theme_navbar">Tint phone nav bar</string>
     <!-- Theme name for soft light theme (warm cream, muted tones) -->
     <string name="theme_name_soft_light" tools:keep="@string/theme_name_soft_light">Soft Light</string>
     <!-- Theme name for light theme -->
@@ -1001,7 +997,7 @@ New dictionary:
     <!-- Title of the settings for adjusting the language swipe gesture distance -->
     <string name="prefs_language_swipe_distance">Switch language swipe distance</string>
     <!-- Title of the setting to customize toolbar key codes -->
-    <string name="customize_toolbar_key_codes">Customize toolbar key codes</string>
+    <string name="customize_toolbar_key_codes">Custom button actions</string>
     <!-- Confirmation message when resetting all custom toolbar key codes -->
     <string name="customize_toolbar_key_code_reset_message">Really clear all customized key codes?</string>
     <!-- Text for showing / setting key code -->
@@ -1035,6 +1031,8 @@ New dictionary:
     <!-- Placeholder text for search field -->
     <string name="search_field_placeholder">Search</string>
 
+    <!-- Expandable section header for advanced settings -->
+    <string name="advanced_settings">Advanced</string>
 
     <!-- gesture data gathering, new strings for normal use should go above -->
 

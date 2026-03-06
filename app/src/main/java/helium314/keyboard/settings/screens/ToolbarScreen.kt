@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,19 +25,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.core.graphics.drawable.toBitmap
 import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
-import helium314.keyboard.latin.utils.ToolbarMode
-import helium314.keyboard.latin.utils.getStringResourceOrName
+import helium314.keyboard.latin.utils.getActivity
+import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.Setting
+import helium314.keyboard.settings.SettingsActivity
 import helium314.keyboard.settings.Theme
 import helium314.keyboard.settings.dialogs.ToolbarKeysCustomizer
 import helium314.keyboard.settings.initPreview
-import helium314.keyboard.settings.preferences.ListPreference
 import helium314.keyboard.settings.preferences.Preference
 import helium314.keyboard.settings.preferences.ReorderSwitchPreference
 import helium314.keyboard.settings.preferences.SwitchPreference
@@ -45,17 +48,16 @@ import helium314.keyboard.settings.previewDark
 fun ToolbarScreen(
     onClickBack: () -> Unit,
 ) {
-    val items = listOf(
-        Settings.PREF_TOOLBAR_KEYS,
-        Settings.PREF_TOOLBAR_CUSTOM_KEY_CODES,
-        R.string.managed_by_whisperclick,
+    val ctx = LocalContext.current
+    val prefs = ctx.prefs()
+    val toolbarOn = prefs.getString(Settings.PREF_TOOLBAR_MODE, Defaults.PREF_TOOLBAR_MODE) != "HIDDEN"
+    val actionBarOn = prefs.getBoolean(Settings.PREF_SHOW_ACTION_BAR, Defaults.PREF_SHOW_ACTION_BAR)
+    val items = listOfNotNull(
         Settings.PREF_TOOLBAR_MODE,
-        Settings.PREF_TOOLBAR_HIDING_GLOBAL,
-        Settings.PREF_PINNED_TOOLBAR_KEYS,
-        Settings.PREF_QUICK_PIN_TOOLBAR_KEYS,
-        Settings.PREF_AUTO_SHOW_TOOLBAR,
-        Settings.PREF_AUTO_HIDE_TOOLBAR,
-        Settings.PREF_VARIABLE_TOOLBAR_DIRECTION,
+        if (toolbarOn) Settings.PREF_TOOLBAR_KEYS else null,
+        Settings.PREF_SHOW_ACTION_BAR,
+        if (actionBarOn) Settings.PREF_CLIPBOARD_TOOLBAR_KEYS else null,
+        Settings.PREF_TOOLBAR_CUSTOM_KEY_CODES,
     )
     SearchSettingsScreen(
         onClickBack = onClickBack,
@@ -65,27 +67,37 @@ fun ToolbarScreen(
 }
 
 fun createToolbarSettings(context: Context) = listOf(
-    Setting(context, Settings.PREF_TOOLBAR_MODE, R.string.toolbar_mode) { setting ->
+    Setting(context, Settings.PREF_TOOLBAR_MODE, R.string.show_toolbar) {
         val ctx = LocalContext.current
-        val items =
-            ToolbarMode.entries.map { it.name.lowercase().getStringResourceOrName("toolbar_mode_", ctx) to it.name }
-        ListPreference(
-            setting,
-            items,
-            Defaults.PREF_TOOLBAR_MODE,
-            enabled = false
-        )
-    },
-    Setting(context, Settings.PREF_TOOLBAR_HIDING_GLOBAL, R.string.toolbar_hiding_global) {
-        SwitchPreference(it, Defaults.PREF_TOOLBAR_HIDING_GLOBAL, enabled = false)
+        val prefs = ctx.prefs()
+        val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
+        if ((b?.value ?: 0) < 0) { /* trigger recomposition */ }
+        val isOn = prefs.getString(Settings.PREF_TOOLBAR_MODE, Defaults.PREF_TOOLBAR_MODE) != "HIDDEN"
+        Preference(
+            name = it.title,
+            onClick = {
+                val newMode = if (isOn) "HIDDEN" else "TOOLBAR_KEYS"
+                prefs.edit { putString(Settings.PREF_TOOLBAR_MODE, newMode) }
+            },
+        ) {
+            Switch(
+                checked = isOn,
+                onCheckedChange = { checked ->
+                    val newMode = if (checked) "TOOLBAR_KEYS" else "HIDDEN"
+                    prefs.edit { putString(Settings.PREF_TOOLBAR_MODE, newMode) }
+                },
+            )
+        }
     },
     Setting(context, Settings.PREF_TOOLBAR_KEYS, R.string.toolbar_keys) {
         ReorderSwitchPreference(it, Defaults.PREF_TOOLBAR_KEYS)
     },
-    Setting(context, Settings.PREF_PINNED_TOOLBAR_KEYS, R.string.pinned_toolbar_keys) {
-        ReorderSwitchPreference(it, Defaults.PREF_PINNED_TOOLBAR_KEYS, enabled = false)
+    Setting(context, Settings.PREF_SHOW_ACTION_BAR, R.string.show_action_bar) {
+        SwitchPreference(it, Defaults.PREF_SHOW_ACTION_BAR)
     },
-    // PREF_CLIPBOARD_TOOLBAR_KEYS moved to createActionBarSettings() in ActionBarScreen.kt
+    Setting(context, Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, R.string.clipboard_toolbar_keys) {
+        ReorderSwitchPreference(it, Defaults.PREF_CLIPBOARD_TOOLBAR_KEYS)
+    },
     Setting(context, Settings.PREF_TOOLBAR_CUSTOM_KEY_CODES, R.string.customize_toolbar_key_codes) {
         var showDialog by rememberSaveable { mutableStateOf(false) }
         Preference(
@@ -98,24 +110,6 @@ fun createToolbarSettings(context: Context) = listOf(
                 onDismissRequest = { showDialog = false }
             )
     },
-    Setting(context, Settings.PREF_QUICK_PIN_TOOLBAR_KEYS,
-        R.string.quick_pin_toolbar_keys, R.string.quick_pin_toolbar_keys_summary)
-    {
-        SwitchPreference(it, Defaults.PREF_QUICK_PIN_TOOLBAR_KEYS, enabled = false)
-    },
-    Setting(context, Settings.PREF_AUTO_SHOW_TOOLBAR, R.string.auto_show_toolbar, R.string.auto_show_toolbar_summary)
-    {
-        SwitchPreference(it, Defaults.PREF_AUTO_SHOW_TOOLBAR, enabled = false)
-    },
-    Setting(context, Settings.PREF_AUTO_HIDE_TOOLBAR, R.string.auto_hide_toolbar, R.string.auto_hide_toolbar_summary)
-    {
-        SwitchPreference(it, Defaults.PREF_AUTO_HIDE_TOOLBAR, enabled = false)
-    },
-    Setting(context, Settings.PREF_VARIABLE_TOOLBAR_DIRECTION,
-        R.string.var_toolbar_direction, R.string.var_toolbar_direction_summary)
-    {
-        SwitchPreference(it, Defaults.PREF_VARIABLE_TOOLBAR_DIRECTION, enabled = false)
-    }
 )
 
 @Composable

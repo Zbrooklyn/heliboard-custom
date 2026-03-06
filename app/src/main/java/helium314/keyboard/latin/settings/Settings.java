@@ -185,6 +185,9 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_LAST_SHOWN_EMOJI_CATEGORY_ID = "last_shown_emoji_category_id";
     public static final String PREF_LAST_SHOWN_EMOJI_CATEGORY_PAGE_ID = "last_shown_emoji_category_page_id";
 
+    // Action bar
+    public static final String PREF_SHOW_ACTION_BAR = "show_action_bar";
+
     // AI / Voice settings
     public static final String PREF_AI_PROVIDER = "ai_provider";
     public static final String PREF_GEMINI_API_KEY = "gemini_api_key";

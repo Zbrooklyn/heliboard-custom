@@ -149,16 +149,16 @@ The entire keyboard is restyled to match Samsung One UI dark keyboard.
 | **Voice & AI settings screen** | Done | `ce01da74` | VoiceAIScreen.kt |
 | **API key fields** — inline with password masking + eye toggle | Done | `9e28e336` | VoiceAIScreen.kt |
 | **API Keys section** reorganized to top | Done | `202a0d04` | VoiceAIScreen.kt |
-| ~~**Theme & Size settings screen**~~ | **Deleted** | `f15184a7` | Merged into Appearance, ThemeSizeScreen.kt removed |
-| **Settings overhaul (Batch A)** | Done | `f15184a7` | 10 files: white screen fix, curated Appearance (~14 items), niche prefs → Advanced "Customization", clipboard presets, keyboard preview toggle, ThemeSize deleted |
 | **Factory defaults / reset layout** | Done | `d6e64651`, `e9d876d3` | Settings.java |
 | **Keyboard height presets** (Compact/Normal/Large/Custom) | Done | `b06cc72b` | KeyboardHeightPreference.kt |
-| **Section dividers** — WhisperClick / Classic Settings | Done | `87e66701` | settings screens |
 | **Haptic feedback improvements** | Done | `68335f36` | settings |
 | **Share button** | Done | `68335f36` | settings |
 | **API call counter** | Done | `e365f6fc` | settings |
+| **Settings restructure** | Planned | — | Restore HeliBoard structure, simplify toolbar (see SETTINGS_RESTRUCTURE.md) |
 
-**Test:** Open WhisperClick settings → should show WhisperClick branding, Voice & AI section with API key fields (masked), Theme & Size screen.
+**Test:** Open settings → flat list (no WhisperClick/Classic split), Voice & AI with API key fields (masked), Toolbar with on/off toggles for toolbar + action bar.
+
+**Note:** Previous settings overhaul (Batch A) introduced fragmentation — Action Bar screen (1 setting), Clipboard screen (4 settings), orphan Number Row switch, WhisperClick/Classic categories. These are being undone in the settings restructure. See `SETTINGS_AUDIT.md` for full analysis.
 
 ---
 

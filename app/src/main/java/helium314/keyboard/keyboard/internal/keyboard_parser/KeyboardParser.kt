@@ -16,13 +16,17 @@ import helium314.keyboard.keyboard.internal.keyboard_parser.floris.SimplePopups
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.TextKeyData
 import helium314.keyboard.latin.common.isEmoji
 import helium314.keyboard.latin.define.DebugFlags
+import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.LayoutType
 import helium314.keyboard.latin.utils.POPUP_KEYS_LAYOUT
 import helium314.keyboard.latin.utils.POPUP_KEYS_NUMBER
+import helium314.keyboard.latin.utils.getEnabledClipboardToolbarKeys
+import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.replaceFirst
 import helium314.keyboard.latin.utils.splitAt
 import helium314.keyboard.latin.utils.sumOf
+import helium314.keyboard.latin.utils.toolbarKeyStrings
 import kotlin.math.roundToInt
 
 /**
@@ -327,11 +331,18 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
     }
 
     private fun getActionRow(): MutableList<KeyData> {
-        return try {
-            LayoutParser.parseLayout(LayoutType.ACTION_ROW, params, context).first()
-        } catch (e: Exception) {
-            mutableListOf()
-        }
+        val prefs = context.prefs()
+        if (!prefs.getBoolean(Settings.PREF_SHOW_ACTION_BAR, Defaults.PREF_SHOW_ACTION_BAR))
+            return mutableListOf()
+        val enabledKeys = getEnabledClipboardToolbarKeys(prefs)
+        if (enabledKeys.isEmpty()) return mutableListOf()
+        return enabledKeys.map { key ->
+            TextKeyData(
+                label = toolbarKeyStrings[key]!!,
+                type = KeyType.FUNCTION,
+                width = -1f
+            )
+        }.toMutableList()
     }
 
     // some layouts have numbers hardcoded in the main layout (pcqwerty as keys, and others as popups)
