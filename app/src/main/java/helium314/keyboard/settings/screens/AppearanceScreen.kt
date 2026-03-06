@@ -313,7 +313,7 @@ fun createAppearanceSettings(context: Context) = listOf(
             "\uD83C\uDFFE" to "\uD83C\uDFFE",
             "\uD83C\uDFFF" to "\uD83C\uDFFF"
         )
-        ListPreference(setting, items, Defaults.PREF_EMOJI_SKIN_TONE) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
+        ListPreference(setting, items, Defaults.PREF_EMOJI_SKIN_TONE) { KeyboardSwitcher.getInstance().reloadKeyboard() }
     },
 )
 

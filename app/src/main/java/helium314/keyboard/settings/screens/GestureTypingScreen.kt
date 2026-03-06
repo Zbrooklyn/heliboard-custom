@@ -119,7 +119,7 @@ fun createGestureTypingSettings(context: Context) = listOf(
             val followingSystem = it == default
             // allow the default to be overridden
             ctx.prefs().edit { putBoolean(Settings.PREF_GESTURE_DYNAMIC_PREVIEW_FOLLOW_SYSTEM, followingSystem) }
-            KeyboardSwitcher.getInstance().setThemeNeedsReload()
+            KeyboardSwitcher.getInstance().reloadKeyboard()
         }
     },
     Setting(context, Settings.PREF_GESTURE_SPACE_AWARE, R.string.gesture_space_aware, R.string.gesture_space_aware_summary) {
@@ -145,7 +145,7 @@ fun createGestureTypingSettings(context: Context) = listOf(
             range = 100f..1900f,
             description = { stringResource(R.string.abbreviation_unit_milliseconds, (it + 100).toString()) },
             stepSize = 10,
-        ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
+        ) { KeyboardSwitcher.getInstance().reloadKeyboard() }
     },
 )
 

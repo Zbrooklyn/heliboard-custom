@@ -44,7 +44,7 @@ fun ReorderSwitchPreference(setting: Setting, default: String, enabled: Boolean 
             onConfirmed = { reorderedItems ->
                 val value = reorderedItems.joinToString(Separators.ENTRY) { it.name + Separators.KV + it.state }
                 prefs.edit { putString(setting.key, value) }
-                KeyboardSwitcher.getInstance().setThemeNeedsReload()
+                KeyboardSwitcher.getInstance().reloadKeyboard()
             },
             onDismissRequest = { showDialog = false },
             onNeutral = { prefs.edit { remove(setting.key)} },

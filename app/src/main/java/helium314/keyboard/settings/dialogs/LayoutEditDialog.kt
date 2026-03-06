@@ -82,7 +82,7 @@ fun LayoutEditDialog(
             LayoutUtilsCustom.onLayoutFileChanged()
             onEdited(newLayoutName)
             (ctx.getActivity() as? SettingsActivity)?.prefChanged()
-            KeyboardSwitcher.getInstance().setThemeNeedsReload()
+            KeyboardSwitcher.getInstance().reloadKeyboard()
         },
         confirmButtonText = stringResource(R.string.save),
         initialText = startContent ?: LayoutUtilsCustom.getLayoutFile(initialLayoutName, layoutType, ctx).readText(),

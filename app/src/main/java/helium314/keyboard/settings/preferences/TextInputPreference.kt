@@ -28,7 +28,7 @@ fun TextInputPreference(setting: Setting, default: String, info: String? = null,
             onDismissRequest = { showDialog = false },
             onConfirmed = {
                 prefs.edit { putString(setting.key, it) }
-                KeyboardSwitcher.getInstance().setThemeNeedsReload()
+                KeyboardSwitcher.getInstance().reloadKeyboard()
             },
             initialText = prefs.getString(setting.key, default) ?: "",
             title = { Text(setting.title) },

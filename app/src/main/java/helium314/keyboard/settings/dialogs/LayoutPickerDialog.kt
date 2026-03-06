@@ -169,7 +169,7 @@ private fun LayoutItemRow(
             .clickable {
                 onDismissRequest()
                 Settings.writeDefaultLayoutName(layoutName, layoutType, prefs)
-                KeyboardSwitcher.getInstance().setThemeNeedsReload()
+                KeyboardSwitcher.getInstance().reloadKeyboard()
             }
             .padding(start = 6.dp)
             .heightIn(min = 40.dp)
@@ -179,7 +179,7 @@ private fun LayoutItemRow(
             onClick = {
                 onDismissRequest()
                 Settings.writeDefaultLayoutName(layoutName, layoutType, prefs)
-                KeyboardSwitcher.getInstance().setThemeNeedsReload()
+                KeyboardSwitcher.getInstance().reloadKeyboard()
             }
         )
         Text(
