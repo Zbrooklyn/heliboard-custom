@@ -16,7 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
+import helium314.keyboard.latin.settings.Defaults
+import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.JniUtils
 import helium314.keyboard.latin.utils.SubtypeLocaleUtils.displayName
 import helium314.keyboard.latin.utils.SubtypeSettings
@@ -26,6 +29,7 @@ import helium314.keyboard.settings.Theme
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.preferences.Preference
 import helium314.keyboard.settings.preferences.PreferenceCategory
+import helium314.keyboard.settings.preferences.SwitchPreference
 import helium314.keyboard.settings.previewDark
 import helium314.keyboard.settings.screens.gesturedata.END_DATE_EPOCH_MILLIS
 import helium314.keyboard.settings.screens.gesturedata.TWO_WEEKS_IN_MILLIS
@@ -45,6 +49,7 @@ fun MainSettingsScreen(
     onClickDictionaries: () -> Unit,
     onClickVoiceAI: () -> Unit,
     onClickThemeSize: () -> Unit,
+    onClickActionBar: () -> Unit,
     onClickClipboard: () -> Unit,
     onClickBack: () -> Unit,
 ) {
@@ -76,10 +81,21 @@ fun MainSettingsScreen(
                     icon = R.drawable.ic_settings_toolbar
                 ) { NextScreenIcon() }
                 Preference(
+                    name = stringResource(R.string.settings_screen_action_bar),
+                    description = stringResource(R.string.action_bar_summary),
+                    onClick = onClickActionBar,
+                    icon = R.drawable.ic_settings_toolbar
+                ) { NextScreenIcon() }
+                Preference(
                     name = stringResource(R.string.settings_screen_clipboard),
                     onClick = onClickClipboard,
                     icon = R.drawable.sym_keyboard_clipboard_holo
                 ) { NextScreenIcon() }
+                SwitchPreference(
+                    name = stringResource(R.string.number_row),
+                    key = Settings.PREF_SHOW_NUMBER_ROW,
+                    default = Defaults.PREF_SHOW_NUMBER_ROW,
+                ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
 
                 // ── Classic Settings (legacy HeliBoard) ──
                 PreferenceCategory(stringResource(R.string.settings_category_classic))
@@ -148,7 +164,7 @@ private fun PreviewScreen() {
     initPreview(LocalContext.current)
     Theme(previewDark) {
         Surface {
-            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 }

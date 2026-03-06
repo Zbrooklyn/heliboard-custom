@@ -246,6 +246,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
         mContext = context;
         mPrefs = KtxKt.prefs(context);
         mPrefs.registerOnSharedPreferenceChangeListener(this);
+        applyWhisperClickDefaults(mPrefs);
     }
 
     public void onDestroy() {
@@ -303,6 +304,18 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
 
     public void startListener() {
         mPrefs.registerOnSharedPreferenceChangeListener(this);
+    }
+
+    /** Enforce hardcoded toolbar defaults for WhisperClick. One-time migration. */
+    public static void applyWhisperClickDefaults(final SharedPreferences prefs) {
+        if (prefs.getBoolean("whisperclick_toolbar_hardcoded_v1", false)) return;
+        prefs.edit()
+            .putString(PREF_TOOLBAR_MODE, "EXPANDABLE")
+            .putBoolean(PREF_AUTO_SHOW_TOOLBAR, true)
+            .putBoolean(PREF_AUTO_HIDE_TOOLBAR, true)
+            .putBoolean(PREF_QUICK_PIN_TOOLBAR_KEYS, false)
+            .putBoolean("whisperclick_toolbar_hardcoded_v1", true)
+            .apply();
     }
 
     // TODO: Remove this method and add proxy method to SettingsValues.
