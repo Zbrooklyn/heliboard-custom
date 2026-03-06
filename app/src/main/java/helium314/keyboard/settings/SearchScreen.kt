@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import helium314.keyboard.latin.R
+import helium314.keyboard.latin.utils.getActivity
 import helium314.keyboard.settings.preferences.PreferenceCategory
 
 @Composable
@@ -149,6 +151,18 @@ fun <T: Any?> SearchScreen(
                             }
                         },
                         actions = {
+                            // Keyboard preview toggle
+                            val activity = LocalContext.current.getActivity() as? SettingsActivity
+                            if (activity != null) {
+                                val previewActive = activity.keyboardPreviewActive.value
+                                IconButton(onClick = { activity.toggleKeyboardPreview() }) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_ime_switcher),
+                                        contentDescription = "Toggle keyboard preview",
+                                        modifier = Modifier.alpha(if (previewActive) 1f else 0.5f)
+                                    )
+                                }
+                            }
                             if (icon == null)
                                 IconButton(onClick = { setShowSearch(!showSearch) }) { SearchIcon() }
                             else

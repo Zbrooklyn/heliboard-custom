@@ -34,7 +34,6 @@ import helium314.keyboard.settings.screens.TextCorrectionScreen
 import helium314.keyboard.settings.screens.ActionBarScreen
 import helium314.keyboard.settings.screens.ClipboardSettingsScreen
 import helium314.keyboard.settings.screens.ToolbarScreen
-import helium314.keyboard.settings.screens.ThemeSizeScreen
 import helium314.keyboard.settings.screens.VoiceAIScreen
 import helium314.keyboard.settings.screens.gesturedata.GestureDataScreen
 import kotlinx.coroutines.CoroutineScope
@@ -82,7 +81,6 @@ fun SettingsNavHost(
                 onClickLayouts = { navController.navigate(SettingsDestination.Layouts) },
                 onClickDictionaries = { navController.navigate(SettingsDestination.Dictionaries) },
                 onClickVoiceAI = { navController.navigate(SettingsDestination.VoiceAI) },
-                onClickThemeSize = { navController.navigate(SettingsDestination.ThemeSize) },
                 onClickActionBar = { navController.navigate(SettingsDestination.ActionBar) },
                 onClickClipboard = { navController.navigate(SettingsDestination.Clipboard) },
                 onClickBack = ::goBack,
@@ -90,9 +88,6 @@ fun SettingsNavHost(
         }
         composable(SettingsDestination.VoiceAI) {
             VoiceAIScreen(onClickBack = ::goBack)
-        }
-        composable(SettingsDestination.ThemeSize) {
-            ThemeSizeScreen(onClickBack = ::goBack)
         }
         composable(SettingsDestination.ActionBar) {
             ActionBarScreen(onClickBack = ::goBack)
@@ -185,7 +180,6 @@ object SettingsDestination {
     const val Layouts = "layouts"
     const val Dictionaries = "dictionaries"
     const val VoiceAI = "voice_ai"
-    const val ThemeSize = "theme_size"
     const val ActionBar = "action_bar"
     const val Clipboard = "clipboard"
     val navTarget = MutableStateFlow(Settings)

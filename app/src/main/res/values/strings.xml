@@ -141,6 +141,10 @@
     <!-- Settings category title for Appearance & Layout/Misc -->
     <string name="settings_category_miscellaneous">Miscellaneous</string>
     <string name="settings_category_size">Size</string>
+    <string name="settings_category_customization">Customization</string>
+    <string name="clipboard_retention_10min">10 minutes</string>
+    <string name="clipboard_retention_1hour">1 hour</string>
+    <string name="clipboard_retention_24hours">24 hours</string>
     <!--  Option for enabling or disabling the split keyboard layout in portrait mode.-->
     <string name="enable_split_keyboard">Enable split keyboard</string>
     <!--  Option for enabling or disabling the split keyboard layout in landscape mode.-->

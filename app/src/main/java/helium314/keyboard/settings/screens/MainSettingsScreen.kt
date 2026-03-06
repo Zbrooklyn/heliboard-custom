@@ -48,7 +48,6 @@ fun MainSettingsScreen(
     onClickLayouts: () -> Unit,
     onClickDictionaries: () -> Unit,
     onClickVoiceAI: () -> Unit,
-    onClickThemeSize: () -> Unit,
     onClickActionBar: () -> Unit,
     onClickClipboard: () -> Unit,
     onClickBack: () -> Unit,
@@ -71,8 +70,8 @@ fun MainSettingsScreen(
                     icon = R.drawable.ic_rewrite
                 ) { NextScreenIcon() }
                 Preference(
-                    name = stringResource(R.string.settings_screen_theme_size),
-                    onClick = onClickThemeSize,
+                    name = stringResource(R.string.settings_screen_appearance),
+                    onClick = onClickAppearance,
                     icon = R.drawable.ic_settings_appearance
                 ) { NextScreenIcon() }
                 Preference(
@@ -99,11 +98,6 @@ fun MainSettingsScreen(
 
                 // ── Classic Settings (legacy HeliBoard) ──
                 PreferenceCategory(stringResource(R.string.settings_category_classic))
-                Preference(
-                    name = stringResource(R.string.settings_screen_appearance),
-                    onClick = onClickAppearance,
-                    icon = R.drawable.ic_settings_appearance
-                ) { NextScreenIcon() }
                 Preference(
                     name = stringResource(R.string.language_and_layouts_title),
                     description = enabledSubtypes.joinToString(", ") { it.displayName() },
@@ -164,7 +158,7 @@ private fun PreviewScreen() {
     initPreview(LocalContext.current)
     Theme(previewDark) {
         Surface {
-            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 }

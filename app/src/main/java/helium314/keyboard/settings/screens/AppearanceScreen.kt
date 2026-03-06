@@ -54,38 +54,31 @@ fun AppearanceScreen(
         Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
     val dayNightMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && prefs.getBoolean(Settings.PREF_THEME_DAY_NIGHT, Defaults.PREF_THEME_DAY_NIGHT)
     val items = listOf(
+        // Colors
         R.string.settings_screen_theme,
         Settings.PREF_THEME_STYLE,
-        Settings.PREF_ICON_STYLE,
-        Settings.PREF_CUSTOM_ICON_NAMES,
         Settings.PREF_THEME_COLORS,
-        Settings.PREF_THEME_KEY_BORDERS,
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
             Settings.PREF_THEME_DAY_NIGHT else null,
         if (dayNightMode) Settings.PREF_THEME_COLORS_NIGHT else null,
         Settings.PREF_NAVBAR_COLOR,
-        SettingsWithoutKey.BACKGROUND_IMAGE,
-        SettingsWithoutKey.BACKGROUND_IMAGE_LANDSCAPE,
-        R.string.settings_category_miscellaneous,
-        Settings.PREF_ENABLE_SPLIT_KEYBOARD,
-        Settings.PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE,
-        if (prefs.getBoolean(Settings.PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE, Defaults.PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE)
-            || prefs.getBoolean(Settings.PREF_ENABLE_SPLIT_KEYBOARD, Defaults.PREF_ENABLE_SPLIT_KEYBOARD))
-            Settings.PREF_SPLIT_SPACER_SCALE_PREFIX else null,
+        // Style
+        Settings.PREF_THEME_KEY_BORDERS,
         if (prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS))
             Settings.PREF_NARROW_KEY_GAPS else null,
+        // Icons
+        Settings.PREF_ICON_STYLE,
+        Settings.PREF_CUSTOM_ICON_NAMES,
+        // Background
+        SettingsWithoutKey.BACKGROUND_IMAGE,
+        SettingsWithoutKey.BACKGROUND_IMAGE_LANDSCAPE,
+        // Size
+        R.string.settings_category_size,
         Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX,
         Settings.PREF_BOTTOM_PADDING_SCALE_PREFIX,
-        Settings.PREF_SIDE_PADDING_SCALE_PREFIX,
-        Settings.PREF_SPACE_BAR_TEXT,
-        SettingsWithoutKey.CUSTOM_FONT,
         Settings.PREF_FONT_SCALE,
-        SettingsWithoutKey.CUSTOM_EMOJI_FONT,
-        Settings.PREF_EMOJI_FONT_SCALE,
-        if (prefs.getFloat(Settings.PREF_EMOJI_FONT_SCALE, Defaults.PREF_EMOJI_FONT_SCALE) != 1f)
-            Settings.PREF_EMOJI_KEY_FIT else null,
-        if (prefs.getInt(Settings.PREF_EMOJI_MAX_SDK, 0) >= 24)
-            Settings.PREF_EMOJI_SKIN_TONE else null,
+        // Reset
+        SettingsWithoutKey.RESET_LAYOUT,
     )
     SearchSettingsScreen(
         onClickBack = onClickBack,

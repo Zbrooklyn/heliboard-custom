@@ -42,8 +42,8 @@ import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.Setting
 import helium314.keyboard.settings.SettingsActivity
 import helium314.keyboard.settings.dialogs.ThreeButtonAlertDialog
+import helium314.keyboard.settings.preferences.ListPreference
 import helium314.keyboard.settings.preferences.Preference
-import helium314.keyboard.settings.preferences.SliderPreference
 import helium314.keyboard.settings.preferences.SwitchPreference
 
 @Composable
@@ -158,16 +158,15 @@ fun createClipboardSettings(context: Context) = listOf(
     },
     Setting(context, Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME, R.string.clipboard_history_retention_time) { setting ->
         val ctx = LocalContext.current
-        SliderPreference(
-            name = setting.title,
-            key = setting.key,
-            default = Defaults.PREF_CLIPBOARD_HISTORY_RETENTION_TIME,
-            description = {
-                if (it > 120) stringResource(R.string.settings_no_limit)
-                else stringResource(R.string.abbreviation_unit_minutes, it.toString())
-            },
-            range = 1f..121f,
-        ) { ClipboardDao.getInstance(ctx)?.clearOldClips(true) }
+        val items = listOf(
+            ctx.getString(R.string.clipboard_retention_10min) to 10,
+            ctx.getString(R.string.clipboard_retention_1hour) to 60,
+            ctx.getString(R.string.clipboard_retention_24hours) to 1440,
+            ctx.getString(R.string.settings_no_limit) to 121,
+        )
+        ListPreference(setting, items, Defaults.PREF_CLIPBOARD_HISTORY_RETENTION_TIME) {
+            ClipboardDao.getInstance(ctx)?.clearOldClips(true)
+        }
     },
     Setting(context, Settings.PREF_CLIPBOARD_HISTORY_PINNED_FIRST, R.string.clipboard_history_pinned_first) {
         SwitchPreference(it, Defaults.PREF_CLIPBOARD_HISTORY_PINNED_FIRST)

@@ -13,6 +13,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -62,6 +66,7 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     private val prefs by lazy { this.prefs() }
     val prefChanged = MutableStateFlow(0) // simple counter, as the only relevant information is that something changed
     fun prefChanged() = prefChanged.value++
+    val keyboardPreviewActive = mutableStateOf(false)
     private val dictUriFlow = MutableStateFlow<Uri?>(null)
     private val cachedDictionaryFile by lazy { File(this.cacheDir.path + File.separator + "temp_dict") }
     private val crashReportFiles = MutableStateFlow<List<File>>(emptyList())
@@ -110,6 +115,14 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
                             }
                         }
                     else {
+                        // Hidden text field for keyboard preview — triggers soft keyboard when focused
+                        if (keyboardPreviewActive.value) {
+                            BasicTextField(
+                                value = "",
+                                onValueChange = {},
+                                modifier = Modifier.size(1.dp).alpha(0f)
+                            )
+                        }
                         SettingsNavHost(onClickBack = { this.finish() })
                         if (showWelcomeWizard) {
                             WelcomeWizard(close = { showWelcomeWizard = false }, finish = this::finish)
@@ -169,12 +182,26 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     override fun onPause() {
         super.onPause()
         setForceTheme(null, null)
+        keyboardPreviewActive.value = false
         paused = true
     }
 
     override fun onResume() {
         super.onResume()
         paused = false
+    }
+
+    fun toggleKeyboardPreview() {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        keyboardPreviewActive.value = !keyboardPreviewActive.value
+        if (keyboardPreviewActive.value) {
+            // Request focus on the hidden text field to trigger soft keyboard
+            window.decorView.post {
+                imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
+            }
+        } else {
+            imm.hideSoftInputFromWindow(window.decorView.windowToken, 0)
+        }
     }
 
     fun setForceTheme(theme: String?, night: Boolean?) {
