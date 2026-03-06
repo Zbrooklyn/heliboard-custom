@@ -291,6 +291,9 @@
     <string name="quick_text_empty">No quick text configured</string>
     <string name="quick_text_hint">Enter text…</string>
     <string name="settings_category_quick_text">Quick text</string>
+    <string name="managed_by_whisperclick">Managed by WhisperClick</string>
+    <string name="settings_screen_action_bar">Action Bar</string>
+    <string name="action_bar_summary">Edit keys shown below the toolbar</string>
     <!-- Preferences item for enabling swipe deletion -->
     <string name="delete_swipe">Delete swipe</string>
     <!-- Description for "delete_swipe" option. -->

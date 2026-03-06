@@ -22,7 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -56,15 +58,18 @@ fun Preference(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     description: String? = null,
+    enabled: Boolean = true,
     @DrawableRes icon: Int? = null,
     value: @Composable (RowScope.() -> Unit)? = null,
 ) {
+    val effectiveDescription = if (!enabled) stringResource(R.string.managed_by_whisperclick) else description
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
             .heightIn(min = 44.dp)
-            .padding(vertical = 10.dp, horizontal = 12.dp),
+            .padding(vertical = 10.dp, horizontal = 12.dp)
+            .alpha(if (enabled) 1f else 0.38f),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -72,13 +77,13 @@ fun Preference(
             IconOrImage(icon, name, 32)
         Column(modifier = Modifier.weight(1f)) {
             Text(text = name, style = MaterialTheme.typography.bodyLarge)
-            if (description != null) {
+            if (effectiveDescription != null) {
                 CompositionLocalProvider(
                     LocalTextStyle provides MaterialTheme.typography.bodyMedium,
                     LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
                 ) {
                     Text(
-                        text = description,
+                        text = effectiveDescription,
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }

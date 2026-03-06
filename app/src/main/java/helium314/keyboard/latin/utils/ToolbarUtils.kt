@@ -124,14 +124,14 @@ enum class ToolbarMode {
 val toolbarKeyStrings = entries.associateWithTo(EnumMap(ToolbarKey::class.java)) { it.toString().lowercase(Locale.US) }
 
 val defaultToolbarPref by lazy {
-    val default = listOf(VOICE, REWRITE, CLIPBOARD, EMOJI, NUMPAD, SETTINGS)
+    val default = listOf(VOICE, REWRITE, CLIPBOARD, EMOJI, NUMPAD, SETTINGS, QUICK_TEXT)
     val others = entries.filterNot { it in default || it == CLOSE_HISTORY }
     default.joinToString(Separators.ENTRY) { it.name + Separators.KV + true } + Separators.ENTRY +
             others.joinToString(Separators.ENTRY) { it.name + Separators.KV + false }
 }
 
 val defaultPinnedToolbarPref by lazy {
-    val default = listOf(VOICE, REWRITE, CLIPBOARD, EMOJI, NUMPAD, SETTINGS)
+    val default = listOf(VOICE, REWRITE, CLIPBOARD, EMOJI, NUMPAD, SETTINGS, QUICK_TEXT)
     val others = entries.filterNot { it in default || it == CLOSE_HISTORY }
     default.joinToString(Separators.ENTRY) { it.name + Separators.KV + true } +
         Separators.ENTRY +
@@ -158,6 +158,16 @@ fun upgradeToolbarPrefs(prefs: SharedPreferences) {
         prefs.edit {
             putString(Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, defaultClipboardToolbarPref)
             putBoolean("whisperclick_clipboard_toolbar_migrated_v3", true)
+        }
+    }
+    // Enable QUICK_TEXT in toolbar for existing users
+    if (!prefs.getBoolean("whisperclick_quick_text_enabled_v1", false)) {
+        prefs.edit {
+            for (prefKey in listOf(Settings.PREF_TOOLBAR_KEYS, Settings.PREF_PINNED_TOOLBAR_KEYS)) {
+                val current = prefs.getString(prefKey, null) ?: continue
+                putString(prefKey, current.replace("QUICK_TEXT${Separators.KV}false", "QUICK_TEXT${Separators.KV}true"))
+            }
+            putBoolean("whisperclick_quick_text_enabled_v1", true)
         }
     }
 }

@@ -27,6 +27,7 @@ fun <T: Number> SliderPreference(
     default: T,
     range: ClosedFloatingPointRange<Float>,
     stepSize: Int? = null,
+    enabled: Boolean = true,
     onValueChanged: (Float?) -> Unit = { },
     onConfirmed: (T) -> Unit = { },
 ) {
@@ -42,9 +43,10 @@ fun <T: Number> SliderPreference(
     var showDialog by rememberSaveable { mutableStateOf(false) }
     Preference(
         name = name,
-        onClick = { showDialog = true },
+        onClick = { if (enabled) showDialog = true },
         modifier = modifier,
-        description = description(initialValue)
+        description = description(initialValue),
+        enabled = enabled
     )
     if (showDialog)
         SliderDialog(

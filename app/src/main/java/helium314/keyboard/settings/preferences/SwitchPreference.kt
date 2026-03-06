@@ -48,6 +48,7 @@ fun SwitchPreference(
     key: String,
     default: Boolean,
     description: String? = null,
+    enabled: Boolean = true,
     allowCheckedChange: (Boolean) -> Boolean = { true }, // true means ok, usually for showing some dialog
     onCheckedChange: (Boolean) -> Unit = { },
 ) {
@@ -58,6 +59,7 @@ fun SwitchPreference(
         Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
     var value = prefs.getBoolean(key, default)
     fun switched(newValue: Boolean) {
+        if (!enabled) return
         if (!allowCheckedChange(newValue)) {
             value = !newValue
             return
@@ -70,11 +72,13 @@ fun SwitchPreference(
         name = name,
         onClick = { switched(!value) },
         modifier = modifier,
-        description = description
+        description = description,
+        enabled = enabled
     ) {
         Switch(
             checked = value,
             onCheckedChange = { switched(it) },
+            enabled = enabled
         )
     }
 }

@@ -25,12 +25,13 @@ import helium314.keyboard.settings.screens.GetIcon
 import androidx.core.content.edit
 
 @Composable
-fun ReorderSwitchPreference(setting: Setting, default: String) {
+fun ReorderSwitchPreference(setting: Setting, default: String, enabled: Boolean = true) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
     Preference(
         name = setting.title,
         description = setting.description,
-        onClick = { showDialog = true },
+        onClick = { if (enabled) showDialog = true },
+        enabled = enabled
     )
     if (showDialog) {
         val ctx = LocalContext.current

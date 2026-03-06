@@ -19,6 +19,7 @@ fun <T: Any> ListPreference(
     setting: Setting,
     items: List<Pair<String, T>>,
     default: T,
+    enabled: Boolean = true,
     onChanged: (T) -> Unit = { }
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
@@ -27,7 +28,8 @@ fun <T: Any> ListPreference(
     Preference(
         name = setting.title,
         description = selected?.first,
-        onClick = { showDialog = true }
+        onClick = { if (enabled) showDialog = true },
+        enabled = enabled
     )
     if (showDialog) {
         ListPickerDialog(
