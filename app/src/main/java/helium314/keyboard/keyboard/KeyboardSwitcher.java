@@ -985,8 +985,12 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         updateKeyboardThemeAndContextThemeWrapper(displayContext, KeyboardTheme.getKeyboardTheme(displayContext));
         mCurrentInputView = (InputView)LayoutInflater.from(mThemeContext).inflate(R.layout.input_view, null);
         mMainKeyboardFrame = mCurrentInputView.findViewById(R.id.main_keyboard_frame);
-        // Apply background color eagerly to prevent white flash before onNextLayout fires
-        Settings.getValues().mColors.setBackground(mMainKeyboardFrame, ColorType.MAIN_BACKGROUND);
+        // Apply background color eagerly to prevent white flash before onNextLayout fires.
+        // Use setBackgroundColor() directly instead of Colors.setBackground() which sets WHITE
+        // first then applies a color filter — causing a visible white frame.
+        final int bg = Settings.getValues().mColors.get(ColorType.MAIN_BACKGROUND);
+        mCurrentInputView.setBackgroundColor(bg);
+        mMainKeyboardFrame.setBackgroundColor(bg);
         mEmojiPalettesView = mCurrentInputView.findViewById(R.id.emoji_palettes_view);
         mClipboardHistoryView = mCurrentInputView.findViewById(R.id.clipboard_history_view);
         mFeatureDrawerView = mCurrentInputView.findViewById(R.id.feature_drawer_view);
