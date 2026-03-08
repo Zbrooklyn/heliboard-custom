@@ -1637,7 +1637,7 @@ public class LatinIME extends InputMethodService implements
         mSuggestionStripView.setExternalSuggestionView(tv, false);
     }
 
-    private void clearVoiceStatus() {
+    public void clearVoiceStatus() {
         if (mSuggestionStripView == null) return;
         setNeutralSuggestionStrip();
     }

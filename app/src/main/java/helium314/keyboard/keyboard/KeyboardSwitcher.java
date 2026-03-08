@@ -494,6 +494,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             mKeyboardView.setAlpha(1f);
             mKeyboardView.setEnabled(true);
         }
+        // Clear the "Drag handle to resize" instruction from the suggestion strip
+        if (mLatinIME != null) mLatinIME.clearVoiceStatus();
         if (rebuild) {
             reloadMainKeyboard();
         }
