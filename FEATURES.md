@@ -158,9 +158,11 @@ The entire keyboard is restyled to match Samsung One UI dark keyboard.
 | **Share button** | Done | `68335f36` | settings |
 | **API call counter** | Done | `e365f6fc` | settings |
 | **Keyboard preview toggle** — shows/hides keyboard in settings | Done | pending | SettingsActivity.kt, SearchScreen.kt |
-| **Preview toggle tracks IME visibility** — syncs state when keyboard dismissed externally | Done | pending | SettingsActivity.kt (WindowInsetsCompat listener) |
+| **Preview toggle tracks IME visibility** — debounced (600ms) WindowInsetsCompat | Awaiting test | pending | SettingsActivity.kt |
 | **Preview survives app switch** — restores keyboard on resume if it was active | Done | pending | SettingsActivity.kt (onPause/onResume) |
 | **Replaced deprecated toggleSoftInput** — uses showSoftInput(SHOW_IMPLICIT) | Done | pending | SettingsActivity.kt |
+| **Live settings update** — all pref changes reload keyboard via setThemeNeedsReload() | Awaiting test | pending | SettingsActivity.kt |
+| **Focus recovery after dialogs** — LaunchedEffect re-requests focus on pref change | Awaiting test | pending | SettingsActivity.kt |
 | **Settings restructure** | Planned | — | Restore HeliBoard structure, simplify toolbar (see SETTINGS_RESTRUCTURE.md) |
 
 **Test:** Open settings → flat list (no WhisperClick/Classic split), Voice & AI with API key fields (masked), Toolbar with on/off toggles for toolbar + action bar.

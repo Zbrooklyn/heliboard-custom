@@ -11,6 +11,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
@@ -51,6 +55,7 @@ import helium314.keyboard.settings.dialogs.ConfirmationDialog
 import helium314.keyboard.settings.dialogs.NewDictionaryDialog
 import helium314.keyboard.settings.screens.gesturedata.END_DATE_EPOCH_MILLIS
 import helium314.keyboard.settings.screens.gesturedata.TWO_WEEKS_IN_MILLIS
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.BufferedOutputStream
 import java.io.File
@@ -74,6 +79,14 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     private val crashReportFiles = MutableStateFlow<List<File>>(emptyList())
     private var paused = true
     private var mPreviewWasActive = false
+    private var mReloadingKeyboard = false
+    private var mPreviewKillPending = false
+    private val mPreviewKillRunnable = Runnable {
+        mPreviewKillPending = false
+        if (keyboardPreviewActive.value && !mReloadingKeyboard) {
+            keyboardPreviewActive.value = false
+        }
+    }
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -118,13 +131,24 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
                             }
                         }
                     else {
-                        // Hidden text field for keyboard preview — triggers soft keyboard when focused
+                        // Hidden text field for keyboard preview — triggers soft keyboard when focused.
+                        // FocusRequester ensures focus returns after dialogs close.
                         if (keyboardPreviewActive.value) {
+                            val focusRequester = remember { FocusRequester() }
+                            val prefState by prefChanged.collectAsState()
                             BasicTextField(
                                 value = "",
                                 onValueChange = {},
                                 modifier = Modifier.size(1.dp).alpha(0f)
+                                    .focusRequester(focusRequester)
                             )
+                            // Re-request focus when preview activates AND after each pref change.
+                            // Pref changes often come from dialogs that steal focus — the delay
+                            // lets the dialog dismiss before we reclaim focus and show the keyboard.
+                            LaunchedEffect(keyboardPreviewActive.value, prefState) {
+                                delay(200)
+                                try { focusRequester.requestFocus() } catch (_: Exception) {}
+                            }
                         }
                         SettingsNavHost(onClickBack = { this.finish() })
                         if (showWelcomeWizard) {
@@ -173,10 +197,21 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
 
         // Track actual keyboard visibility so the preview toggle stays in sync
         // when the user dismisses the keyboard by back press, swipe, etc.
+        // Debounced (600ms) to avoid false kills during:
+        //   - setThemeNeedsReload() hide/show cycle (~100ms)
+        //   - Dialog focus transitions (dialogs steal focus → keyboard hides temporarily)
         ViewCompat.setOnApplyWindowInsetsListener(cv) { view, insets ->
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (!imeVisible && keyboardPreviewActive.value) {
-                keyboardPreviewActive.value = false
+            if (!imeVisible && keyboardPreviewActive.value && !mReloadingKeyboard) {
+                if (!mPreviewKillPending) {
+                    mPreviewKillPending = true
+                    view.postDelayed(mPreviewKillRunnable, 600)
+                }
+            } else if (imeVisible) {
+                if (mPreviewKillPending) {
+                    view.removeCallbacks(mPreviewKillRunnable)
+                    mPreviewKillPending = false
+                }
             }
             ViewCompat.onApplyWindowInsets(view, insets)
         }
@@ -197,6 +232,9 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
         setForceTheme(null, null)
         mPreviewWasActive = keyboardPreviewActive.value
         keyboardPreviewActive.value = false
+        // Cancel any pending debounced kill
+        window.decorView.removeCallbacks(mPreviewKillRunnable)
+        mPreviewKillPending = false
         paused = true
     }
 
@@ -286,6 +324,15 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
 
     override fun onSharedPreferenceChanged(prefereces: SharedPreferences?, key: String?) {
         prefChanged()
+        // When keyboard preview is active, reload the keyboard so changes are visible live.
+        // setThemeNeedsReload() triggers a fast hide/show cycle that re-inflates all views
+        // (keyboard layout, toolbar, suggestion strip) with updated SettingsValues.
+        if (keyboardPreviewActive.value) {
+            mReloadingKeyboard = true
+            KeyboardSwitcher.getInstance().setThemeNeedsReload()
+            // Clear flag after hide/show cycle settles (200ms covers deferred insets callbacks)
+            window.decorView.postDelayed({ mReloadingKeyboard = false }, 200)
+        }
     }
 }
 
