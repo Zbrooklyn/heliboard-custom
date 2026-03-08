@@ -81,6 +81,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private View mResizeResetBtn;
     private boolean mResizeModeActive;
     private float mResizeOriginalScale;
+    private long mResizeLastReloadTime;
     private TextView mFakeToastView;
     private LatinIME mLatinIME;
     private RichInputMethodManager mRichImm;
@@ -492,12 +493,27 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         if (mKeyboardView != null) {
             mKeyboardView.setAlpha(1f);
             mKeyboardView.setEnabled(true);
-            mKeyboardView.setScaleY(1f);
         }
         if (rebuild) {
-            setThemeNeedsReload();
             reloadMainKeyboard();
         }
+    }
+
+    /** Resize the overlay to match the current keyboard view height. */
+    private void resizeOverlayToKeyboard() {
+        if (mResizeOverlay == null || mKeyboardView == null) return;
+        // Post to run after the keyboard has been measured at its new size
+        mKeyboardView.post(() -> {
+            if (mResizeOverlay == null || mKeyboardView == null || !mResizeModeActive) return;
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, mKeyboardView.getHeight());
+            lp.gravity = Gravity.BOTTOM;
+            mResizeOverlay.setLayoutParams(lp);
+            mResizeOverlay.setVisibility(View.VISIBLE);
+            // Keep keyboard dimmed during resize
+            mKeyboardView.setAlpha(0.3f);
+            mKeyboardView.setEnabled(false);
+        });
     }
 
     public boolean isResizeModeActive() {
@@ -551,41 +567,50 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         }
 
         // --- Shared vertical drag touch listener (used by center handle + top tab) ---
+        // Live re-layout: rebuilds keyboard at correct proportions during drag,
+        // throttled to avoid excessive rebuilds. Same approach as one-handed mode resize.
         final float[] startY = {0f};
         final float[] startScale = {1f};
         final float[] pendingScale = {1f};
+        final long RESIZE_THROTTLE_MS = 120; // min ms between keyboard rebuilds
         final View.OnTouchListener resizeDragListener = (v, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
                     startY[0] = event.getRawY();
                     startScale[0] = Settings.getValues().mKeyboardHeightScale;
                     pendingScale[0] = startScale[0];
-                    // Pivot at bottom so keyboard grows/shrinks from the top
-                    if (mKeyboardView != null) {
-                        mKeyboardView.setPivotY(mKeyboardView.getHeight());
-                    }
+                    mResizeLastReloadTime = 0;
                     return true;
                 case MotionEvent.ACTION_MOVE:
                     float deltaY = startY[0] - event.getRawY();
                     float deltaPct = deltaY / (200 * density);
-                    // Match settings slider range: 0.3f to 1.5f
-                    pendingScale[0] = Math.max(0.3f, Math.min(1.5f, startScale[0] + deltaPct));
-                    // Scale ONLY the keyboard view, not the entire frame (which includes toolbar)
-                    if (mKeyboardView != null) {
-                        float visualScale = pendingScale[0] / startScale[0];
-                        mKeyboardView.setScaleY(visualScale);
-                    }
+                    float newScale = Math.max(0.3f, Math.min(1.5f, startScale[0] + deltaPct));
+                    // Only rebuild if scale changed meaningfully
+                    if (Math.abs(newScale - pendingScale[0]) < 0.01f) return true;
+                    pendingScale[0] = newScale;
+                    // Throttle: only rebuild every RESIZE_THROTTLE_MS
+                    long now = System.currentTimeMillis();
+                    if (now - mResizeLastReloadTime < RESIZE_THROTTLE_MS) return true;
+                    mResizeLastReloadTime = now;
+                    // Write new scale and rebuild keyboard with correct key proportions
+                    Settings.getInstance().writeHeightScale(pendingScale[0]);
+                    reloadMainKeyboard();
+                    // Re-show overlay sized to new keyboard height
+                    resizeOverlayToKeyboard();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    // Final rebuild at exact scale
                     if (Math.abs(pendingScale[0] - startScale[0]) >= 0.02f) {
                         Settings.getInstance().writeHeightScale(pendingScale[0]);
+                        reloadMainKeyboard();
+                        resizeOverlayToKeyboard();
                     }
                     return true;
                 case MotionEvent.ACTION_CANCEL:
-                    // Revert visual scale on cancel
-                    if (mKeyboardView != null) {
-                        mKeyboardView.setScaleY(1f);
-                    }
+                    // Revert to original scale on cancel
+                    Settings.getInstance().writeHeightScale(startScale[0]);
+                    reloadMainKeyboard();
+                    resizeOverlayToKeyboard();
                     return true;
             }
             return false;
@@ -608,7 +633,6 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
                 Settings.getInstance().writeHeightScale(1.0f);
                 mResizeOriginalScale = 1.0f;
                 // Rebuild keyboard at default height, then re-enter resize mode
-                if (mKeyboardView != null) mKeyboardView.setScaleY(1f);
                 exitResizeMode(true);
                 // Re-enter resize mode so user can see the result and continue adjusting
                 mKeyboardView.post(() -> enterResizeMode());
