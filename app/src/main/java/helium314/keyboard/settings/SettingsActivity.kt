@@ -9,6 +9,8 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
@@ -71,6 +73,7 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     private val cachedDictionaryFile by lazy { File(this.cacheDir.path + File.separator + "temp_dict") }
     private val crashReportFiles = MutableStateFlow<List<File>>(emptyList())
     private var paused = true
+    private var mPreviewWasActive = false
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -167,6 +170,16 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
         }
 
         enableEdgeToEdge()
+
+        // Track actual keyboard visibility so the preview toggle stays in sync
+        // when the user dismisses the keyboard by back press, swipe, etc.
+        ViewCompat.setOnApplyWindowInsetsListener(cv) { view, insets ->
+            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            if (!imeVisible && keyboardPreviewActive.value) {
+                keyboardPreviewActive.value = false
+            }
+            ViewCompat.onApplyWindowInsets(view, insets)
+        }
     }
 
     override fun onStart() {
@@ -182,6 +195,7 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     override fun onPause() {
         super.onPause()
         setForceTheme(null, null)
+        mPreviewWasActive = keyboardPreviewActive.value
         keyboardPreviewActive.value = false
         paused = true
     }
@@ -189,6 +203,17 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     override fun onResume() {
         super.onResume()
         paused = false
+        // Restore keyboard preview if it was active before pause
+        if (mPreviewWasActive) {
+            keyboardPreviewActive.value = true
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            window.decorView.post {
+                val focused = window.currentFocus
+                if (focused != null) {
+                    imm.showSoftInput(focused, InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
+        }
     }
 
     fun toggleKeyboardPreview() {
@@ -197,7 +222,10 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
         if (keyboardPreviewActive.value) {
             // Request focus on the hidden text field to trigger soft keyboard
             window.decorView.post {
-                imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
+                val focused = window.currentFocus
+                if (focused != null) {
+                    imm.showSoftInput(focused, InputMethodManager.SHOW_IMPLICIT)
+                }
             }
         } else {
             imm.hideSoftInputFromWindow(window.decorView.windowToken, 0)

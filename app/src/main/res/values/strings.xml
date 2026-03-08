@@ -477,6 +477,8 @@
     <!-- Resize mode overlay buttons -->
     <string name="resize_keyboard_reset">Reset</string>
     <string name="resize_keyboard_done">Done</string>
+    <!-- Resize mode instruction shown in suggestion strip -->
+    <string name="resize_keyboard_instruction">↕ Drag to resize</string>
     <!-- Keyboard height preset labels -->
     <string name="height_preset_compact">Compact</string>
     <string name="height_preset_normal">Normal</string>

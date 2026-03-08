@@ -95,8 +95,11 @@ The entire keyboard is restyled to match Samsung One UI dark keyboard.
 | **Keyboard dimming** during resize (40% alpha) | Done | `4caa5b3e` | KeyboardSwitcher.java |
 | **4-direction arrow icon** (vector drawable) | Done | `4caa5b3e` | ic_resize_drag.xml (new) |
 | **Height scale persistence** (portrait/landscape) | Done | `b06cc72b` | Settings.java |
+| **Live re-layout during drag** — keys rebuild at correct proportions (throttled 120ms) | Done | `815bb501` | KeyboardSwitcher.java |
+| **Clear instruction on Done** — suggestion strip clears when Done is tapped | Done | `a7ef1486` | KeyboardSwitcher.java, LatinIME.java |
+| **Instruction text as string resource** — localizable, shortened to "↕ Drag to resize" | Done | pending | LatinIME.java, strings.xml |
 
-**Test:** Tap resize toolbar key → blue border overlay, drag handle, Reset/Done buttons over dimmed keyboard. Drag up/down to resize. Tap Done to commit. Tap Reset for default.
+**Test:** Tap resize toolbar key → blue border overlay, drag handle, Reset/Done buttons over dimmed keyboard. Drag up/down → keys re-layout live at correct proportions. Tap Done → overlay and instruction dismiss. Tap Reset → keyboard snaps to default.
 
 ---
 
@@ -154,6 +157,10 @@ The entire keyboard is restyled to match Samsung One UI dark keyboard.
 | **Haptic feedback improvements** | Done | `68335f36` | settings |
 | **Share button** | Done | `68335f36` | settings |
 | **API call counter** | Done | `e365f6fc` | settings |
+| **Keyboard preview toggle** — shows/hides keyboard in settings | Done | pending | SettingsActivity.kt, SearchScreen.kt |
+| **Preview toggle tracks IME visibility** — syncs state when keyboard dismissed externally | Done | pending | SettingsActivity.kt (WindowInsetsCompat listener) |
+| **Preview survives app switch** — restores keyboard on resume if it was active | Done | pending | SettingsActivity.kt (onPause/onResume) |
+| **Replaced deprecated toggleSoftInput** — uses showSoftInput(SHOW_IMPLICIT) | Done | pending | SettingsActivity.kt |
 | **Settings restructure** | Planned | — | Restore HeliBoard structure, simplify toolbar (see SETTINGS_RESTRUCTURE.md) |
 
 **Test:** Open settings → flat list (no WhisperClick/Classic split), Voice & AI with API key fields (masked), Toolbar with on/off toggles for toolbar + action bar.

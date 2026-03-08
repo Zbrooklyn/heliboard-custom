@@ -1462,7 +1462,7 @@ public class LatinIME extends InputMethodService implements
             boolean wasActive = mKeyboardSwitcher.isResizeModeActive();
             mKeyboardSwitcher.toggleResizeMode();
             if (!wasActive) {
-                showVoiceStatus("\u2195 Drag handle to resize \u2022 Tap resize again when done");
+                showVoiceStatus(getString(R.string.resize_keyboard_instruction));
             } else {
                 clearVoiceStatus();
             }
