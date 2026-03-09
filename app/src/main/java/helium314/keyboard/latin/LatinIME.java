@@ -91,6 +91,7 @@ import helium314.keyboard.latin.ai.GeminiClient;
 import helium314.keyboard.latin.ai.OpenAIClient;
 import helium314.keyboard.latin.ai.RewriteProvider;
 import helium314.keyboard.latin.ai.RewriteHelper;
+import helium314.keyboard.latin.ai.RewritePanelView;
 import helium314.keyboard.latin.ai.RewriteVariants;
 import helium314.keyboard.latin.voice.ActivityLog;
 import helium314.keyboard.latin.voice.ModelDownloader;
@@ -1097,6 +1098,9 @@ public class LatinIME extends InputMethodService implements
         if (mKeyboardSwitcher.isShowingVoiceInputMode()) {
             mKeyboardSwitcher.exitVoiceInputMode();
         }
+        if (mKeyboardSwitcher.isShowingRewritePanel()) {
+            mKeyboardSwitcher.exitRewritePanelMode();
+        }
     }
 
     private void cleanupInternalStateForFinishInput() {
@@ -1911,11 +1915,11 @@ public class LatinIME extends InputMethodService implements
 
     // --- Magic Rewrite (AI text transformation) ---
 
-    /** Show the rewrite style menu in the suggestion strip — user picks a style before API call. */
+    /** Show the AI rewrite panel — replaces keyboard with style picker + result display. */
     private void showRewriteStyleMenu() {
         if (mSuggestionStripView == null) return;
 
-        // First check there's text to rewrite
+        // Extract text to rewrite
         android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         android.view.inputmethod.ExtractedTextRequest req = new android.view.inputmethod.ExtractedTextRequest();
@@ -1926,55 +1930,93 @@ public class LatinIME extends InputMethodService implements
             return;
         }
 
-        int chipText = Color.WHITE;
-        int stripBg = Color.parseColor("#1A1A1A");
-        try {
-            helium314.keyboard.latin.common.Colors colors = Settings.getValues().mColors;
-            chipText = colors.get(ColorType.KEY_TEXT);
-            stripBg = colors.get(ColorType.STRIP_BACKGROUND);
-        } catch (Exception ignored) {}
+        String text = extractedText.text.toString().trim();
+        mOriginalRewriteText = text;
 
-        android.widget.HorizontalScrollView scrollView = new android.widget.HorizontalScrollView(mDisplayContext != null ? mDisplayContext : this);
-        scrollView.setHorizontalScrollBarEnabled(false);
-        scrollView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
-            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-            android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+        // Switch to panel mode
+        mKeyboardSwitcher.setRewritePanelMode();
+        RewritePanelView panel = mKeyboardSwitcher.getRewritePanelView();
+        if (panel == null) return;
 
-        android.widget.LinearLayout container = new android.widget.LinearLayout(mDisplayContext != null ? mDisplayContext : this);
-        container.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        container.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        container.setPadding(dpToPx(4), 0, dpToPx(4), 0);
+        panel.setOriginalText(text);
+        panel.setOnCloseListener(() -> exitRewritePanel());
+        panel.setOnApplyListener(newText -> {
+            applyRewrite(newText);
+            panel.showUndo();
+        });
+        panel.setOnUndoListener(() -> undoRewrite());
+        panel.setOnStyleSelectedListener(style -> triggerRewrite(style));
 
-        // Style options
-        String[][] styles = {
-            {"\u2728 Clean", "clean"},
-            {"\uD83D\uDCBC Professional", "professional"},
-            {"\uD83D\uDCAC Casual", "casual"},
-            {"\uD83D\uDCDD Concise", "concise"},
-            {"\uD83D\uDE04 Emojify", "emojify"},
-            {"\u2726 All Styles", "all"},
-        };
+        // Auto-trigger clean rewrite
+        triggerRewrite("clean");
+        panel.setSelectedStyle("clean");
+    }
 
-        for (String[] style : styles) {
-            android.widget.TextView chip = createRewriteChip(style[0], null, chipText, stripBg);
-            final String styleName = style[1];
-            chip.setOnClickListener(v -> {
-                if ("all".equals(styleName)) {
-                    handleRewrite(true);
-                } else {
-                    handleRewrite(false, styleName);
-                }
-            });
-            container.addView(chip);
+    /** Trigger a single-style AI rewrite and display result in the panel. */
+    private void triggerRewrite(String style) {
+        RewritePanelView panel = mKeyboardSwitcher.getRewritePanelView();
+        if (panel == null || mOriginalRewriteText == null) return;
+
+        // Get AI provider and API key
+        android.content.SharedPreferences prefs = KtxKt.prefs(this);
+        android.content.SharedPreferences secPrefs = SecurePrefs.INSTANCE.get(this);
+        String provider = prefs.getString(Settings.PREF_AI_PROVIDER, "gemini");
+        String apiKey;
+        RewriteProvider client;
+
+        if ("openai".equals(provider)) {
+            apiKey = secPrefs.getString(Settings.PREF_OPENAI_API_KEY, "");
+            client = OpenAIClient.INSTANCE;
+        } else {
+            apiKey = secPrefs.getString(Settings.PREF_GEMINI_API_KEY, "");
+            client = GeminiClient.INSTANCE;
         }
 
-        // Cancel chip
-        android.widget.TextView cancelChip = createRewriteChip("\u2715 Cancel", null, chipText, stripBg);
-        cancelChip.setOnClickListener(v -> clearVoiceStatus());
-        container.addView(cancelChip);
+        if (apiKey == null || apiKey.isEmpty()) {
+            panel.showError("Set your " + client.getName() + " API key in Voice & AI settings");
+            return;
+        }
 
-        scrollView.addView(container);
-        mSuggestionStripView.setExternalSuggestionView(scrollView, true);
+        panel.showLoading(client.getName());
+        panel.setSelectedStyle(style);
+
+        final String finalApiKey = apiKey;
+        final String finalText = mOriginalRewriteText;
+        final RewriteProvider finalClient = client;
+        new Thread(() -> {
+            try {
+                String result = RewriteHelper.rewriteSingleBlocking(finalClient, finalApiKey, finalText, style);
+                ActivityLog.INSTANCE.log("Rewrite", "Style '" + style + "' success (" + result.length() + " chars)");
+                mHandler.post(() -> {
+                    RewritePanelView p = mKeyboardSwitcher.getRewritePanelView();
+                    if (p != null) {
+                        p.showResult(style, result);
+                    }
+                });
+            } catch (Exception e) {
+                ActivityLog.INSTANCE.log("Rewrite", "Failed: " + e.getMessage());
+                android.util.Log.e(TAG, "Rewrite failed", e);
+                mHandler.post(() -> {
+                    RewritePanelView p = mKeyboardSwitcher.getRewritePanelView();
+                    if (p != null) {
+                        String msg = e.getMessage();
+                        if (msg != null && msg.contains("401")) {
+                            p.showError("Invalid API key. Check Voice & AI settings");
+                        } else if (msg != null && msg.contains("UnknownHostException")) {
+                            p.showError("No internet connection");
+                        } else {
+                            p.showError("Rewrite failed: " + (msg != null ? msg : "unknown error"));
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
+
+    /** Exit the AI rewrite panel and return to normal keyboard. */
+    private void exitRewritePanel() {
+        mKeyboardSwitcher.exitRewritePanelMode();
+        setNeutralSuggestionStrip();
     }
 
     private void handleRewrite(boolean allStyles) {

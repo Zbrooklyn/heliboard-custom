@@ -48,6 +48,7 @@ import helium314.keyboard.latin.settings.SettingsValues;
 import helium314.keyboard.latin.suggestions.FeatureDrawerView;
 import helium314.keyboard.latin.suggestions.SuggestionStripView;
 import helium314.keyboard.latin.voice.VoiceInputModeView;
+import helium314.keyboard.latin.ai.RewritePanelView;
 import helium314.keyboard.latin.utils.CapsModeUtils;
 import helium314.keyboard.latin.utils.KtxKt;
 import helium314.keyboard.latin.utils.LanguageOnSpacebarUtils;
@@ -74,6 +75,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private ClipboardHistoryView mClipboardHistoryView;
     private FeatureDrawerView mFeatureDrawerView;
     private VoiceInputModeView mVoiceInputModeView;
+    private RewritePanelView mRewritePanelView;
     private View mResizeHandle;
     private View mResizeOverlay;
     private View mResizeDragHandle;
@@ -356,6 +358,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mClipboardHistoryView.stopClipboardHistory();
         if (mFeatureDrawerView != null) mFeatureDrawerView.setVisibility(View.GONE);
         if (mVoiceInputModeView != null) mVoiceInputModeView.setVisibility(View.GONE);
+        if (mRewritePanelView != null) mRewritePanelView.setVisibility(View.GONE);
     }
 
     // Implements {@link KeyboardState.SwitchActions}.
@@ -468,6 +471,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         // Hide competing views first
         if (mFeatureDrawerView != null) mFeatureDrawerView.setVisibility(View.GONE);
         if (mVoiceInputModeView != null) mVoiceInputModeView.setVisibility(View.GONE);
+        if (mRewritePanelView != null) mRewritePanelView.setVisibility(View.GONE);
         // Dim keyboard and disable all touch input on it
         if (mKeyboardView != null) {
             mKeyboardView.setAlpha(0.3f);
@@ -673,6 +677,40 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
 
     public VoiceInputModeView getVoiceInputModeView() {
         return mVoiceInputModeView;
+    }
+
+    /** Enter AI rewrite panel mode — shows rewrite panel, hides keyboard. */
+    public void setRewritePanelMode() {
+        if (mRewritePanelView == null) return;
+        mMainKeyboardFrame.setVisibility(View.VISIBLE);
+        mKeyboardView.setVisibility(View.GONE);
+        mEmojiPalettesView.setVisibility(View.GONE);
+        mClipboardHistoryView.setVisibility(View.GONE);
+        if (mFeatureDrawerView != null) mFeatureDrawerView.setVisibility(View.GONE);
+        if (mVoiceInputModeView != null) mVoiceInputModeView.setVisibility(View.GONE);
+        mSuggestionStripView.setVisibility(View.GONE);
+        mStripContainer.setVisibility(getSecondaryStripVisibility());
+        mEmojiTabStripView.setVisibility(View.GONE);
+        mClipboardStripScrollView.setVisibility(View.GONE);
+
+        mRewritePanelView.applyTheme(Settings.getValues().mColors);
+        mRewritePanelView.setVisibility(View.VISIBLE);
+    }
+
+    /** Exit AI rewrite panel mode, return to normal keyboard. */
+    public void exitRewritePanelMode() {
+        if (mRewritePanelView == null) return;
+        mRewritePanelView.setVisibility(View.GONE);
+        mKeyboardView.setVisibility(View.VISIBLE);
+        mSuggestionStripView.setVisibility(View.VISIBLE);
+    }
+
+    public boolean isShowingRewritePanel() {
+        return mRewritePanelView != null && mRewritePanelView.isShown();
+    }
+
+    public RewritePanelView getRewritePanelView() {
+        return mRewritePanelView;
     }
 
     @Override
@@ -1014,6 +1052,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mClipboardHistoryView = mCurrentInputView.findViewById(R.id.clipboard_history_view);
         mFeatureDrawerView = mCurrentInputView.findViewById(R.id.feature_drawer_view);
         mVoiceInputModeView = mCurrentInputView.findViewById(R.id.voice_input_mode_view);
+        mRewritePanelView = mCurrentInputView.findViewById(R.id.rewrite_panel_view);
         mFakeToastView = mCurrentInputView.findViewById(R.id.fakeToast);
         mResizeHandle = mCurrentInputView.findViewById(R.id.keyboard_resize_handle);
         mResizeOverlay = mCurrentInputView.findViewById(R.id.resize_mode_overlay);

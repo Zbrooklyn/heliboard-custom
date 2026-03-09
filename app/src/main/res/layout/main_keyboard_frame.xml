@@ -57,6 +57,12 @@
             android:layout_height="wrap_content"
             android:visibility="gone"
             android:padding="16dp" />
+        <helium314.keyboard.latin.ai.RewritePanelView
+            android:id="@+id/rewrite_panel_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:padding="8dp" />
 
         <include
             android:id="@+id/resize_mode_overlay"
