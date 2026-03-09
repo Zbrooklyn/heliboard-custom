@@ -47,11 +47,15 @@ private class AudioCaptureThread(
     @SuppressLint("MissingPermission")
     override fun run() {
         try {
-            val bufferSize = AudioRecord.getMinBufferSize(
+            val minBufSize = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
-            ) * 4
+            )
+            if (minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
+                throw RuntimeException("Device does not support 16kHz mono PCM recording (error=$minBufSize)")
+            }
+            val bufferSize = minBufSize * 4
             val buffer = ShortArray(bufferSize / 2)
 
             val audioRecord = AudioRecord(
@@ -64,7 +68,7 @@ private class AudioCaptureThread(
 
             try {
                 audioRecord.startRecording()
-                while (!quit.get()) {
+                while (!quit.get() && totalSamples < MAX_SAMPLES) {
                     val read = audioRecord.read(buffer, 0, buffer.size)
                     if (read > 0) {
                         chunks.add(buffer.copyOfRange(0, read))
@@ -98,5 +102,7 @@ private class AudioCaptureThread(
 
     companion object {
         const val SAMPLE_RATE = 16000
+        const val MAX_DURATION_SECONDS = 300 // 5 minutes
+        const val MAX_SAMPLES = SAMPLE_RATE * MAX_DURATION_SECONDS // 4,800,000
     }
 }

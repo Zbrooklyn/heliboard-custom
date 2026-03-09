@@ -9,6 +9,7 @@ import com.whispercpp.whisper.WhisperContext
 import helium314.keyboard.latin.ai.WhisperCloudClient
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.SecurePrefs
 import helium314.keyboard.latin.utils.prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,8 +50,12 @@ class VoiceInputManager(
     @Volatile
     private var whisperContext: WhisperContext? = null
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    @Volatile
     private var state = VoiceState.IDLE
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+    private var audioFocusRequest: android.media.AudioFocusRequest? = null
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
 
     // Google STT client — lazily initialized
     private var googleSttClient: GoogleSttClient? = null
@@ -66,6 +71,34 @@ class VoiceInputManager(
         private const val MAX_RECORDING_DURATION_MS = 5 * 60 * 1000L
         /** Max local transcription timeout in milliseconds (60 seconds). */
         private const val LOCAL_TRANSCRIBE_TIMEOUT_MS = 60_000L
+
+        /** Known Whisper hallucination phrases — filter these from local transcription results. */
+        private val HALLUCINATION_PHRASES = setOf(
+            "thank you for watching",
+            "thanks for watching",
+            "thank you for listening",
+            "thanks for listening",
+            "please subscribe",
+            "like and subscribe",
+            "subscribe",
+            "the end",
+            "bye",
+            "bye bye",
+            "goodbye",
+            "you",
+            "...",
+            "subtitles by",
+            "translated by",
+            "amara.org"
+        )
+
+        /** Returns true if the text is a known Whisper hallucination. */
+        private fun isHallucination(text: String): Boolean {
+            val normalized = text.trim().lowercase()
+                .replace(Regex("[.!?,;:\\s]+$"), "") // strip trailing punctuation
+                .trim()
+            return normalized.isEmpty() || HALLUCINATION_PHRASES.contains(normalized)
+        }
     }
 
     @JvmOverloads
@@ -134,6 +167,29 @@ class VoiceInputManager(
 
     fun isRecording(): Boolean = state == VoiceState.LISTENING
 
+    /** Cancel any active recording without transcribing. Used when keyboard dismisses. */
+    fun cancelRecording() {
+        if (state == VoiceState.LISTENING) {
+            mainHandler.removeCallbacks(maxRecordingRunnable)
+            abandonAudioFocus()
+            releaseWakeLock()
+            scope.launch {
+                recorder.stopRecording() // discard samples
+            }
+            state = VoiceState.IDLE
+            onStateChange.onStateChange(state)
+        } else if (state == VoiceState.TRANSCRIBING) {
+            // Can't cancel whisper mid-transcription — just reset state.
+            // The transcription result will be discarded when it arrives
+            // because the InputConnection is already gone.
+            state = VoiceState.IDLE
+            onStateChange.onStateChange(state)
+        }
+        // Cancel Google STT if active
+        googleSttClient?.cancel()
+        googleSttClient = null
+    }
+
     fun toggleRecording() {
         when (state) {
             VoiceState.IDLE -> startRecording()
@@ -159,11 +215,15 @@ class VoiceInputManager(
 
     /** Start recording for local or cloud whisper modes. */
     private fun startWhisperRecording() {
+        requestAudioFocus()
+        acquireWakeLock()
         state = VoiceState.LISTENING
         onStateChange.onStateChange(state)
         scope.launch {
             recorder.startRecording { e ->
                 Log.e(TAG, "Recording error", e)
+                abandonAudioFocus()
+                releaseWakeLock()
                 scope.launch(Dispatchers.Main) {
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
@@ -186,16 +246,25 @@ class VoiceInputManager(
 
     /** Start Google SpeechRecognizer in continuous mode. Must run on main thread. */
     private fun startGoogleStt() {
+        requestAudioFocus()
+        acquireWakeLock()
         // Always create a fresh client to avoid stale isListening state
         googleSttClient?.cancel()
         val client = GoogleSttClient(context).also { googleSttClient = it }
 
         if (!client.isAvailable()) {
             Log.e(TAG, "Google speech recognition not available on this device")
+            abandonAudioFocus()
+            releaseWakeLock()
             state = VoiceState.ERROR
             onStateChange.onStateChange(state)
             return
         }
+
+        // Get the current keyboard language so Google STT uses it instead of device default
+        val currentLocale = try {
+            helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtypeLocale
+        } catch (_: Exception) { null }
 
         // SpeechRecognizer must be started from main thread
         mainHandler.post {
@@ -212,6 +281,8 @@ class VoiceInputManager(
                 },
                 onError = { errorMessage ->
                     Log.e(TAG, "Google STT error: $errorMessage")
+                    abandonAudioFocus()
+                    releaseWakeLock()
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
                 },
@@ -220,14 +291,23 @@ class VoiceInputManager(
                 },
                 onPartial = onPartialResult?.let { callback ->
                     GoogleSttClient.PartialCallback { text -> callback.onPartialResult(text) }
-                }
+                },
+                locale = currentLocale
             )
             state = VoiceState.LISTENING
             onStateChange.onStateChange(state)
         }
     }
 
+    // Note: In split-screen mode, if the user switches focus during recording,
+    // getCurrentInputConnection() in LatinIME may return the connection for the
+    // newly focused window. The transcription result could be committed to the
+    // wrong window. This is an Android framework limitation — no reliable fix
+    // exists without tracking the original InputConnection at recording start.
     private fun stopAndTranscribe() {
+        // Release audio focus now that recording is stopping
+        abandonAudioFocus()
+        releaseWakeLock()
         // Cancel the max recording timer
         mainHandler.removeCallbacks(maxRecordingRunnable)
 
@@ -265,6 +345,32 @@ class VoiceInputManager(
                     return@launch
                 }
 
+                // Guard against very short recordings — Whisper hallucinates on < 0.5s audio
+                val MIN_SAMPLES = 8000 // 0.5 seconds at 16kHz
+                if (samples.size < MIN_SAMPLES) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Recording too short", Toast.LENGTH_SHORT).show()
+                        state = VoiceState.IDLE
+                        onStateChange.onStateChange(state)
+                    }
+                    return@launch
+                }
+
+                // Check audio energy — reject near-silent recordings (likely no speech)
+                var sumSquares = 0.0
+                for (s in samples) {
+                    sumSquares += s.toDouble() * s.toDouble()
+                }
+                val rmsEnergy = kotlin.math.sqrt(sumSquares / samples.size)
+                if (rmsEnergy < 200.0) { // ~200 RMS threshold for speech vs silence (16-bit PCM)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "No speech detected", Toast.LENGTH_SHORT).show()
+                        state = VoiceState.IDLE
+                        onStateChange.onStateChange(state)
+                    }
+                    return@launch
+                }
+
                 if (isCloudMode()) {
                     transcribeCloud(samples)
                 } else {
@@ -283,12 +389,22 @@ class VoiceInputManager(
     /** Transcribe using local whisper.cpp model with timeout. */
     private suspend fun transcribeLocal(samples: ShortArray) {
         val floats = FloatArray(samples.size) { samples[it] / 32768.0f }
+        // Capture whisperContext in a local val before use — another thread could null
+        // it out between the null-check and the method call.
+        val ctx = whisperContext ?: run {
+            withContext(Dispatchers.Main) {
+                onErrorDetail?.onErrorDetail("Voice model not loaded")
+                state = VoiceState.ERROR
+                onStateChange.onStateChange(state)
+            }
+            return
+        }
         try {
             val text = withTimeout(LOCAL_TRANSCRIBE_TIMEOUT_MS) {
-                whisperContext?.transcribeData(floats, printTimestamp = false)
+                ctx.transcribeData(floats, printTimestamp = false)
             }
             withContext(Dispatchers.Main) {
-                if (text.isNullOrBlank()) {
+                if (text.isNullOrBlank() || isHallucination(text)) {
                     onResult.onResult("")
                 } else {
                     onResult.onResult(text.trim())
@@ -309,11 +425,44 @@ class VoiceInputManager(
     /** Transcribe using OpenAI Whisper cloud API with proper error reporting. */
     private suspend fun transcribeCloud(samples: ShortArray) {
         val prefs = context.prefs()
-        val apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, Defaults.PREF_OPENAI_API_KEY)
+        val securePrefs = SecurePrefs.get(context)
+        val apiKey = securePrefs.getString(Settings.PREF_OPENAI_API_KEY, Defaults.PREF_OPENAI_API_KEY)
         // API key already validated in handleVoiceInput() — but guard just in case
         if (apiKey.isNullOrEmpty()) {
             withContext(Dispatchers.Main) {
                 onErrorDetail?.onErrorDetail("Set your OpenAI API key in Voice & AI settings")
+                state = VoiceState.ERROR
+                onStateChange.onStateChange(state)
+            }
+            return
+        }
+
+        // Block cloud STT in privacy-sensitive contexts
+        val ims = context as? android.view.inputmethod.InputMethodService
+        val ei = ims?.currentInputEditorInfo
+        if (ei != null) {
+            val variation = ei.inputType and android.text.InputType.TYPE_MASK_VARIATION
+            val isPassword = variation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                || variation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                || variation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+            val noLearning = (ei.imeOptions and android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
+
+            if (isPassword || noLearning) {
+                Log.d(TAG, "Cloud STT blocked — sensitive field (password=$isPassword, noLearning=$noLearning)")
+                withContext(Dispatchers.Main) {
+                    onErrorDetail?.onErrorDetail("Cloud STT disabled for sensitive fields — switch to Local mode")
+                    state = VoiceState.ERROR
+                    onStateChange.onStateChange(state)
+                }
+                return
+            }
+        }
+
+        // Check incognito mode
+        if (prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE)) {
+            Log.d(TAG, "Cloud STT blocked — incognito mode active")
+            withContext(Dispatchers.Main) {
+                onErrorDetail?.onErrorDetail("Cloud STT disabled in incognito mode — switch to Local mode")
                 state = VoiceState.ERROR
                 onStateChange.onStateChange(state)
             }
@@ -370,7 +519,73 @@ class VoiceInputManager(
         else -> "Local STT"
     }
 
+    private fun requestAudioFocus() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val request = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setOnAudioFocusChangeListener { focusChange ->
+                    if (focusChange == android.media.AudioManager.AUDIOFOCUS_LOSS ||
+                        focusChange == android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                        // Another app grabbed audio focus — stop recording
+                        if (state == VoiceState.LISTENING) {
+                            mainHandler.post { stopAndTranscribe() }
+                        }
+                    }
+                }
+                .build()
+            audioFocusRequest = request
+            audioManager.requestAudioFocus(request)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                { focusChange ->
+                    if (focusChange == android.media.AudioManager.AUDIOFOCUS_LOSS ||
+                        focusChange == android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                        if (state == VoiceState.LISTENING) {
+                            mainHandler.post { stopAndTranscribe() }
+                        }
+                    }
+                },
+                android.media.AudioManager.STREAM_MUSIC,
+                android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+            )
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            audioFocusRequest = null
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(null)
+        }
+    }
+
+    @android.annotation.SuppressLint("WakelockTimeout")
+    private fun acquireWakeLock() {
+        try {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "WhisperClick:VoiceRecording")
+            wakeLock?.acquire()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to acquire wake lock", e)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) it.release()
+            }
+            wakeLock = null
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release wake lock", e)
+        }
+    }
+
     fun release() {
+        abandonAudioFocus()
+        releaseWakeLock()
         mainHandler.removeCallbacks(maxRecordingRunnable)
         // Cancel Google STT if active
         googleSttClient?.cancel()

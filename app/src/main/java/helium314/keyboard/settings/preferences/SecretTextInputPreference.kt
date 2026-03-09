@@ -23,7 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.latin.utils.SecurePrefs
 import helium314.keyboard.settings.Setting
 import androidx.core.content.edit
 
@@ -33,9 +33,10 @@ import androidx.core.content.edit
  */
 @Composable
 fun SecretTextInputPreference(setting: Setting, default: String) {
-    val prefs = LocalContext.current.prefs()
+    val context = LocalContext.current
+    val securePrefs = SecurePrefs.get(context)
     val focusManager = LocalFocusManager.current
-    var text by rememberSaveable { mutableStateOf(prefs.getString(setting.key, default) ?: "") }
+    var text by rememberSaveable { mutableStateOf(securePrefs.getString(setting.key, default) ?: "") }
     var revealed by rememberSaveable { mutableStateOf(false) }
 
     Column(
@@ -47,7 +48,7 @@ fun SecretTextInputPreference(setting: Setting, default: String) {
             value = text,
             onValueChange = {
                 text = it
-                prefs.edit { putString(setting.key, it) }
+                securePrefs.edit { putString(setting.key, it) }
             },
             label = { Text(setting.title) },
             modifier = Modifier.fillMaxWidth(),

@@ -35,6 +35,7 @@ import com.whispercpp.whisper.WhisperCpuConfig
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.SecurePrefs
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.ai.ApiKeyValidator
 import helium314.keyboard.latin.voice.ActivityLog
@@ -308,9 +309,9 @@ private fun TestApiKeyPreference() {
                 if (isTesting) return@Preference
                 isTesting = true
                 testResult = null
-                val prefs = context.prefs()
-                val openaiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, "") ?: ""
-                val geminiKey = prefs.getString(Settings.PREF_GEMINI_API_KEY, "") ?: ""
+                val securePrefs = SecurePrefs.get(context)
+                val openaiKey = securePrefs.getString(Settings.PREF_OPENAI_API_KEY, "") ?: ""
+                val geminiKey = securePrefs.getString(Settings.PREF_GEMINI_API_KEY, "") ?: ""
 
                 Thread {
                     val results = mutableListOf<String>()

@@ -23,6 +23,8 @@ import android.os.Bundle;
 import android.os.Debug;
 import android.os.Message;
 import android.os.Process;
+import android.text.InputType;
+import android.view.KeyCharacterMap;
 import android.util.PrintWriterPrinter;
 import android.util.Printer;
 import android.view.KeyEvent;
@@ -76,6 +78,7 @@ import helium314.keyboard.latin.utils.InputMethodPickerKt;
 import helium314.keyboard.latin.utils.JniUtils;
 import helium314.keyboard.latin.utils.KtxKt;
 import helium314.keyboard.latin.utils.LeakGuardHandlerWrapper;
+import helium314.keyboard.latin.utils.SecurePrefs;
 import helium314.keyboard.latin.utils.Log;
 import helium314.keyboard.latin.utils.RecapitalizeMode;
 import helium314.keyboard.latin.utils.StatsUtils;
@@ -609,6 +612,15 @@ public class LatinIME extends InputMethodService implements
 
         StatsUtils.onCreate(mSettings.getCurrent(), mRichImm);
 
+        // Migrate API keys from plain SharedPreferences to EncryptedSharedPreferences
+        try {
+            android.content.SharedPreferences plainPrefs = KtxKt.prefs(this);
+            SecurePrefs.INSTANCE.migrateFromPlainPrefs(this, plainPrefs, Settings.PREF_OPENAI_API_KEY);
+            SecurePrefs.INSTANCE.migrateFromPlainPrefs(this, plainPrefs, Settings.PREF_GEMINI_API_KEY);
+        } catch (Exception e) {
+            Log.w(TAG, "API key migration to secure storage failed: " + e.getMessage());
+        }
+
         // Initialize voice input if model is already downloaded
         try {
             if (ModelDownloader.isModelDownloaded(this)) {
@@ -1076,9 +1088,14 @@ public class LatinIME extends InputMethodService implements
         super.onFinishInputView(finishingInput);
         Log.i(TAG, "onFinishInputView");
         cleanupInternalStateForFinishInput();
-        // Unload whisper model to free memory when keyboard hides
+        // Force-stop any active recording before unloading — otherwise recording
+        // continues orphaned in the background with no UI to stop it
         if (mVoiceInputManager != null) {
+            mVoiceInputManager.cancelRecording();
             mVoiceInputManager.unloadModel();
+        }
+        if (mKeyboardSwitcher.isShowingVoiceInputMode()) {
+            mKeyboardSwitcher.exitVoiceInputMode();
         }
     }
 
@@ -1485,20 +1502,75 @@ public class LatinIME extends InputMethodService implements
             text -> {  // onResult
                 if (text != null && !text.isEmpty()) {
                     ActivityLog.INSTANCE.log("Voice", "Transcription result: " + text.length() + " chars");
-                    // Auto-capitalize first letter and add period if missing
+
+                    // Check input type for appropriate commitment strategy
+                    android.view.inputmethod.EditorInfo ei = getCurrentInputEditorInfo();
+                    int inputType = (ei != null) ? ei.inputType : InputType.TYPE_CLASS_TEXT;
+                    int inputClass = inputType & InputType.TYPE_MASK_CLASS;
+                    int variation = inputType & InputType.TYPE_MASK_VARIATION;
+                    boolean isTypeNull = inputType == InputType.TYPE_NULL;
+
+                    // Post-process based on field type
                     String processed = text.trim();
                     if (!processed.isEmpty()) {
-                        processed = Character.toUpperCase(processed.charAt(0)) + processed.substring(1);
-                        char last = processed.charAt(processed.length() - 1);
-                        if (last != '.' && last != '!' && last != '?' && last != ',') {
-                            processed = processed + ".";
+                        boolean isStandardText = inputClass == InputType.TYPE_CLASS_TEXT
+                            && variation != InputType.TYPE_TEXT_VARIATION_PASSWORD
+                            && variation != InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                            && variation != InputType.TYPE_TEXT_VARIATION_URI
+                            && variation != InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                            && variation != InputType.TYPE_TEXT_VARIATION_FILTER
+                            && !isTypeNull;
+
+                        if (isStandardText) {
+                            processed = Character.toUpperCase(processed.charAt(0)) + processed.substring(1);
+                            char last = processed.charAt(processed.length() - 1);
+                            if (last != '.' && last != '!' && last != '?' && last != ',') {
+                                processed = processed + ".";
+                            }
                         }
+
+                        boolean addTrailingSpace = isStandardText
+                            && variation != InputType.TYPE_TEXT_VARIATION_FILTER;
+
+                        final String committed = addTrailingSpace ? processed + " " : processed;
+
+                        if (isTypeNull) {
+                            // TYPE_NULL fields (terminals, games) — send key events
+                            android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
+                            if (ic != null) {
+                                ic.beginBatchEdit();
+                                ic.finishComposingText();
+                                // Send entire text as single KEYCODE_UNKNOWN event.
+                                // This preserves surrogate pairs (emoji, CJK supplementary),
+                                // RTL bidi context (Arabic, Hebrew), and character
+                                // shaping/joining (Arabic connected forms).
+                                long now = android.os.SystemClock.uptimeMillis();
+                                KeyEvent event = new KeyEvent(now, committed,
+                                    KeyCharacterMap.VIRTUAL_KEYBOARD, 0);
+                                ic.sendKeyEvent(event);
+                                ic.endBatchEdit();
+                            }
+                        } else {
+                            mInputLogic.mConnection.beginBatchEdit();
+                            mInputLogic.mConnection.finishComposingText();
+                            mInputLogic.mConnection.commitText(committed, 1);
+                            mInputLogic.mConnection.endBatchEdit();
+                        }
+
+                        // Store for undo and show undo chip
+                        mLastTranscribedText = committed;
+                        showVoiceUndoChip(committed);
+
+                        // Reset keyboard state after voice commit so next typed
+                        // character gets correct auto-correct, spacing, and suggestions.
+                        // finishInput() resets mWordComposer, mSpaceState, and composing state.
+                        mInputLogic.finishInput();
+                        mInputLogic.mSuggestedWords = SuggestedWords.getEmptyInstance();
+                        setNeutralSuggestionStrip();
+                        // Update shift state — triggers auto-caps after ". " (Fix #32)
+                        mKeyboardSwitcher.requestUpdatingShiftState(
+                            getCurrentAutoCapsState(), getCurrentRecapitalizeState());
                     }
-                    final String committed = processed + " ";
-                    mInputLogic.mConnection.commitText(committed, 1);
-                    // Store for undo and show undo chip
-                    mLastTranscribedText = committed;
-                    showVoiceUndoChip(committed);
                 } else {
                     ActivityLog.INSTANCE.log("Voice", "No speech detected");
                     Toast.makeText(this, getString(R.string.voice_no_speech_detected), Toast.LENGTH_SHORT).show();
@@ -1698,11 +1770,20 @@ public class LatinIME extends InputMethodService implements
         if (mLastTranscribedText == null) return;
         android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
-        // Delete the committed text by removing characters before cursor
-        ic.deleteSurroundingText(mLastTranscribedText.length(), 0);
-        mLastTranscribedText = null;
-        clearVoiceStatus();
-        Toast.makeText(this, "Transcription undone", Toast.LENGTH_SHORT).show();
+        // Verify text before cursor matches what we committed before deleting
+        CharSequence before = ic.getTextBeforeCursor(mLastTranscribedText.length(), 0);
+        if (before != null && before.toString().equals(mLastTranscribedText)) {
+            ic.beginBatchEdit();
+            ic.deleteSurroundingText(mLastTranscribedText.length(), 0);
+            ic.endBatchEdit();
+            mLastTranscribedText = null;
+            clearVoiceStatus();
+            Toast.makeText(this, "Transcription undone", Toast.LENGTH_SHORT).show();
+        } else {
+            mLastTranscribedText = null;
+            clearVoiceStatus();
+            Toast.makeText(this, "Cannot undo — text has changed", Toast.LENGTH_SHORT).show();
+        }
     }
 
     /** Vibrate according to user's voice haptic preference. */
@@ -1758,8 +1839,8 @@ public class LatinIME extends InputMethodService implements
             }
         } else if ("cloud".equals(sttMode)) {
             // Cloud mode: need OpenAI API key
-            android.content.SharedPreferences prefs = KtxKt.prefs(this);
-            String apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, "");
+            android.content.SharedPreferences securePrefs = SecurePrefs.INSTANCE.get(this);
+            String apiKey = securePrefs.getString(Settings.PREF_OPENAI_API_KEY, "");
             if (apiKey == null || apiKey.isEmpty()) {
                 Toast.makeText(this, "Set your OpenAI API key in Voice & AI settings for cloud STT", Toast.LENGTH_LONG).show();
                 return;
@@ -1923,15 +2004,16 @@ public class LatinIME extends InputMethodService implements
 
         // Get AI provider and API key
         android.content.SharedPreferences prefs = KtxKt.prefs(this);
+        android.content.SharedPreferences secPrefs = SecurePrefs.INSTANCE.get(this);
         String provider = prefs.getString(Settings.PREF_AI_PROVIDER, "gemini");
         String apiKey;
         RewriteProvider client;
 
         if ("openai".equals(provider)) {
-            apiKey = prefs.getString(Settings.PREF_OPENAI_API_KEY, "");
+            apiKey = secPrefs.getString(Settings.PREF_OPENAI_API_KEY, "");
             client = OpenAIClient.INSTANCE;
         } else {
-            apiKey = prefs.getString(Settings.PREF_GEMINI_API_KEY, "");
+            apiKey = secPrefs.getString(Settings.PREF_GEMINI_API_KEY, "");
             client = GeminiClient.INSTANCE;
         }
 

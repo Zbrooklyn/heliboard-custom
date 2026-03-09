@@ -56,11 +56,17 @@ class GoogleSttClient(private val context: Context) {
      * Start continuous listening. Results accumulate until [stopAndFinalize] is called.
      * Partial results are delivered via [onPartial] for live preview.
      */
+    // Language and offline preference — set by startListening(), used by startRecognizer()
+    private var requestedLocale: java.util.Locale? = null
+    private var requestedOffline: Boolean = false
+
     fun startListening(
         onResult: ResultCallback,
         onError: ErrorCallback,
         onListeningStarted: (() -> Unit)? = null,
-        onPartial: PartialCallback? = null
+        onPartial: PartialCallback? = null,
+        locale: java.util.Locale? = null,
+        preferOffline: Boolean = false
     ) {
         if (isListening) {
             Log.w(TAG, "Already listening, ignoring startListening()")
@@ -72,6 +78,8 @@ class GoogleSttClient(private val context: Context) {
         currentOnResult = onResult
         currentOnError = onError
         currentOnPartial = onPartial
+        requestedLocale = locale
+        requestedOffline = preferOffline
 
         startRecognizer(onListeningStarted)
     }
@@ -91,6 +99,10 @@ class GoogleSttClient(private val context: Context) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            requestedLocale?.let { putExtra(RecognizerIntent.EXTRA_LANGUAGE, it.toLanguageTag()) }
+            if (requestedOffline) {
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            }
         }
 
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -140,8 +152,10 @@ class GoogleSttClient(private val context: Context) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = matches?.firstOrNull()
                 if (!text.isNullOrBlank()) {
-                    if (accumulatedText.isNotEmpty()) accumulatedText.append(" ")
-                    accumulatedText.append(text.trim())
+                    if (accumulatedText.length < MAX_ACCUMULATED_CHARS) {
+                        if (accumulatedText.isNotEmpty()) accumulatedText.append(" ")
+                        accumulatedText.append(text.trim())
+                    }
                     Log.d(TAG, "Accumulated: ${accumulatedText.length} chars")
                 }
 
@@ -240,6 +254,7 @@ class GoogleSttClient(private val context: Context) {
 
     companion object {
         private const val TAG = "GoogleSttClient"
+        private const val MAX_ACCUMULATED_CHARS = 10000 // ~2000 words
 
         private fun errorCodeToString(error: Int): String = when (error) {
             SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"

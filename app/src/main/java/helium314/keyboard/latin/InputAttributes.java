@@ -78,8 +78,8 @@ public final class InputAttributes {
             mInputTypeShouldAutoCorrect = false;
             mApplicationSpecifiedCompletionOn = false;
             mShouldInsertSpacesAutomatically = false;
-            // WhisperClick: always show mic — voice transcription commits text like paste,
-            // works fine even in TYPE_NULL fields (terminals, games, etc.)
+            // WhisperClick: always show mic — voice pipeline handles TYPE_NULL fields
+            // by sending key events instead of commitText (see LatinIME.initVoiceInput)
             mShouldShowVoiceInputKey = RichInputMethodManager.isInitialized();
             mDisableGestureFloatingPreviewText = false;
             mIsGeneralTextInput = false;

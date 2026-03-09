@@ -287,10 +287,10 @@ private fun ResetLayoutPreference(setting: Setting) {
 @SuppressLint("ApplySharedPref")
 private fun resetLayoutAndPreferences(context: Context) {
     // Keys to preserve across reset (voice, AI, model settings)
+    // Note: API keys (PREF_OPENAI_API_KEY, PREF_GEMINI_API_KEY) are stored in
+    // EncryptedSharedPreferences via SecurePrefs — they survive regular prefs reset.
     val preserveKeys = setOf(
         Settings.PREF_AI_PROVIDER,
-        Settings.PREF_GEMINI_API_KEY,
-        Settings.PREF_OPENAI_API_KEY,
         Settings.PREF_STT_MODE,
         Settings.PREF_AI_ACTIVE_MODEL,
         "whisperclick_clipboard_toolbar_migrated",
