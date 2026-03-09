@@ -92,6 +92,7 @@ import helium314.keyboard.latin.ai.OpenAIClient;
 import helium314.keyboard.latin.ai.RewriteProvider;
 import helium314.keyboard.latin.ai.RewriteHelper;
 import helium314.keyboard.latin.ai.RewritePanelView;
+import helium314.keyboard.latin.ai.StringCallback;
 import helium314.keyboard.latin.ai.RewriteVariants;
 import helium314.keyboard.latin.voice.ActivityLog;
 import helium314.keyboard.latin.voice.ModelDownloader;

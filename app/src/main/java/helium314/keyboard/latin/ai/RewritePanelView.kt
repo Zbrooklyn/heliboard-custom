@@ -22,6 +22,12 @@ import helium314.keyboard.latin.common.Colors
  * Samsung-style AI rewrite panel that replaces the keyboard area.
  * Built entirely programmatically (no XML layouts), themed via [Colors]/[ColorType].
  */
+
+/** Java-friendly callback for string results. */
+fun interface StringCallback {
+    fun onResult(value: String)
+}
+
 class RewritePanelView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -67,10 +73,10 @@ class RewritePanelView @JvmOverloads constructor(
     private val applyButton: TextView
 
     // Listeners
-    private var onCloseListener: (() -> Unit)? = null
-    private var onApplyListener: ((String) -> Unit)? = null
-    private var onUndoListener: (() -> Unit)? = null
-    private var onStyleSelectedListener: ((String) -> Unit)? = null
+    private var onCloseListener: Runnable? = null
+    private var onApplyListener: StringCallback? = null
+    private var onUndoListener: Runnable? = null
+    private var onStyleSelectedListener: StringCallback? = null
 
     // Cached colors for chip updates
     private var cachedAccentColor: Int = Color.DKGRAY
@@ -114,7 +120,7 @@ class RewritePanelView @JvmOverloads constructor(
             gravity = Gravity.CENTER
             val btnSize = (36 * density).toInt()
             layoutParams = LayoutParams(btnSize, btnSize)
-            setOnClickListener { onCloseListener?.invoke() }
+            setOnClickListener { onCloseListener?.run() }
             contentDescription = "Close rewrite panel"
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         }
@@ -249,20 +255,20 @@ class RewritePanelView @JvmOverloads constructor(
         }
 
         cancelButton = createPillButton("Cancel", filled = false).apply {
-            setOnClickListener { onCloseListener?.invoke() }
+            setOnClickListener { onCloseListener?.run() }
         }
         bottomBar.addView(cancelButton)
 
         undoButton = createPillButton("\u21A9 Undo", filled = false).apply {
             visibility = View.GONE
-            setOnClickListener { onUndoListener?.invoke() }
+            setOnClickListener { onUndoListener?.run() }
         }
         bottomBar.addView(undoButton)
 
         applyButton = createPillButton("Apply", filled = true).apply {
             setOnClickListener {
                 val text = resultText.text?.toString() ?: ""
-                onApplyListener?.invoke(text)
+                onApplyListener?.onResult(text)
             }
         }
         bottomBar.addView(applyButton)
@@ -295,7 +301,7 @@ class RewritePanelView @JvmOverloads constructor(
             setOnClickListener {
                 selectedStyle = styleKey
                 updateChipSelection()
-                onStyleSelectedListener?.invoke(styleKey)
+                onStyleSelectedListener?.onResult(styleKey)
             }
             contentDescription = "Style: $label"
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -453,19 +459,19 @@ class RewritePanelView @JvmOverloads constructor(
         updateChipSelection()
     }
 
-    fun setOnCloseListener(listener: () -> Unit) {
+    fun setOnCloseListener(listener: Runnable) {
         onCloseListener = listener
     }
 
-    fun setOnApplyListener(listener: (String) -> Unit) {
+    fun setOnApplyListener(listener: StringCallback) {
         onApplyListener = listener
     }
 
-    fun setOnUndoListener(listener: () -> Unit) {
+    fun setOnUndoListener(listener: Runnable) {
         onUndoListener = listener
     }
 
-    fun setOnStyleSelectedListener(listener: (String) -> Unit) {
+    fun setOnStyleSelectedListener(listener: StringCallback) {
         onStyleSelectedListener = listener
     }
 
