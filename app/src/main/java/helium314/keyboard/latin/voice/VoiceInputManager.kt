@@ -72,8 +72,9 @@ class VoiceInputManager(
         private const val TAG = "VoiceInputManager"
         /** Max recording duration in milliseconds (5 minutes). */
         private const val MAX_RECORDING_DURATION_MS = 5 * 60 * 1000L
-        /** Max local transcription timeout in milliseconds (60 seconds). */
-        private const val LOCAL_TRANSCRIBE_TIMEOUT_MS = 60_000L
+        /** Max local transcription timeout in milliseconds (3 minutes).
+         *  Some devices need 30x real-time for whisper.cpp inference. */
+        private const val LOCAL_TRANSCRIBE_TIMEOUT_MS = 180_000L
 
         /** Known Whisper hallucination phrases — filter these from local transcription results. */
         private val HALLUCINATION_PHRASES = setOf(
@@ -249,7 +250,9 @@ class VoiceInputManager(
 
     /** Start Google SpeechRecognizer in continuous mode. Must run on main thread. */
     private fun startGoogleStt() {
-        requestAudioFocus()
+        // Do NOT request audio focus for Google STT — SpeechRecognizer manages
+        // its own audio focus internally. Requesting it ourselves causes a conflict:
+        // Google grabs focus → our listener fires AUDIOFOCUS_LOSS → we auto-stop.
         acquireWakeLock()
         // Always create a fresh client to avoid stale isListening state
         googleSttClient?.cancel()
@@ -257,7 +260,6 @@ class VoiceInputManager(
 
         if (!client.isAvailable()) {
             Log.e(TAG, "Google speech recognition not available on this device")
-            abandonAudioFocus()
             releaseWakeLock()
             state = VoiceState.ERROR
             onStateChange.onStateChange(state)
@@ -284,7 +286,6 @@ class VoiceInputManager(
                 },
                 onError = { errorMessage ->
                     Log.e(TAG, "Google STT error: $errorMessage")
-                    abandonAudioFocus()
                     releaseWakeLock()
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
