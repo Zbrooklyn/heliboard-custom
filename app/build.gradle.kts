@@ -8,6 +8,7 @@ plugins {
 }
 
 // Derive version from git tags: v1.0.0 → versionCode=10000, versionName="1.0.0"
+// Supports pre-release suffixes: v1.0.0-beta → versionCode=10000, versionName="1.0.0-beta"
 // Uses providers.exec for Gradle configuration cache compatibility
 val gitTagResult = providers.exec {
     commandLine("git", "describe", "--tags", "--abbrev=0")
@@ -21,20 +22,22 @@ val gitDescribeResult = providers.exec {
 fun gitVersionCode(): Int {
     return try {
         val tag = gitTagResult.standardOutput.asText.get().trim().removePrefix("v")
-        if (tag.isEmpty()) return 3700
-        val parts = tag.split(".")
+        if (tag.isEmpty()) return 10000
+        // Strip pre-release suffix (e.g., "1.0.0-beta" → "1.0.0")
+        val version = tag.split("-").first()
+        val parts = version.split(".")
         val major = parts.getOrNull(0)?.toIntOrNull() ?: 1
         val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
         val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
         major * 10000 + minor * 100 + patch
-    } catch (_: Exception) { 3700 }
+    } catch (_: Exception) { 10000 }
 }
 
 fun gitVersionName(): String {
     return try {
         val name = gitDescribeResult.standardOutput.asText.get().trim().removePrefix("v")
-        name.ifEmpty { "3.7-dev" }
-    } catch (_: Exception) { "3.7-dev" }
+        name.ifEmpty { "1.0.0-dev" }
+    } catch (_: Exception) { "1.0.0-dev" }
 }
 
 android {
