@@ -17,3 +17,9 @@
 # Keep AI/voice classes accessed via reflection or from Java
 -keep class helium314.keyboard.latin.ai.** { *; }
 -keep class helium314.keyboard.latin.voice.** { *; }
+
+# Google Tink (used by androidx.security:security-crypto) references annotation classes
+# that aren't on the Android classpath — tell R8 to ignore them
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn javax.annotation.concurrent.**
