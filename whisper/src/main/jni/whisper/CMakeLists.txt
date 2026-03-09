@@ -23,6 +23,14 @@ set(SOURCE_FILES
 
 find_library(LOG_LIB log)
 
+# Tell ggml which ARM features to enable when cross-compiling.
+# GGML_NATIVE is OFF during NDK builds, so ggml can't auto-detect CPU features.
+# Without this, ggml compiles with bare armv8-a — no dotprod, no i8mm, no FP16,
+# resulting in ~50x slower quantized inference.
+if (${ANDROID_ABI} STREQUAL "arm64-v8a")
+    set(GGML_CPU_ARM_ARCH "armv8.2-a+fp16+dotprod" CACHE STRING "" FORCE)
+endif()
+
 # Fetch ggml once at top level (not inside function to avoid repeated add_subdirectory)
 include(FetchContent)
 FetchContent_Declare(ggml SOURCE_DIR ${WHISPER_LIB_DIR}/ggml)
@@ -58,7 +66,7 @@ function(build_library target_name)
     )
 
     if (${target_name} STREQUAL "whisper_v8fp16_va")
-        target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16)
+        target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16+dotprod)
     elseif (${target_name} STREQUAL "whisper_vfpv4")
         target_compile_options(${target_name} PRIVATE -mfpu=neon-vfpv4)
     endif ()
