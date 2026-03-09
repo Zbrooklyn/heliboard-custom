@@ -36,9 +36,11 @@ class VoiceInputModeView @JvmOverloads constructor(
     private val networkIndicator: TextView
     private val incognitoIndicator: TextView
     private val backButton: TextView
+    private val cancelButton: TextView
 
     private var onMicClick: (() -> Unit)? = null
     private var onBackClick: (() -> Unit)? = null
+    private var onCancelClick: (() -> Unit)? = null
 
     // Mic pulse animation
     private var micPulseAnimatorX: ObjectAnimator? = null
@@ -153,6 +155,20 @@ class VoiceInputModeView @JvmOverloads constructor(
             setOnClickListener { onBackClick?.invoke() }
         }
         addView(backButton)
+
+        // "Cancel" button (visible only during TRANSCRIBING)
+        cancelButton = TextView(context).apply {
+            text = "Cancel"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            visibility = View.GONE  // hidden by default, shown during TRANSCRIBING
+            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = (8 * density).toInt()
+            }
+            setOnClickListener { onCancelClick?.invoke() }
+        }
+        addView(cancelButton)
     }
 
     fun applyTheme(colors: Colors) {
@@ -167,6 +183,7 @@ class VoiceInputModeView @JvmOverloads constructor(
         incognitoIndicator.setTextColor(textColor)
         partialPreviewText.setTextColor(textColor)
         backButton.setTextColor(textColor)
+        cancelButton.setTextColor(textColor)
 
         // Circular mic button background
         val circle = GradientDrawable().apply {
@@ -184,6 +201,10 @@ class VoiceInputModeView @JvmOverloads constructor(
 
     fun setOnBackClickListener(listener: () -> Unit) {
         onBackClick = listener
+    }
+
+    fun setOnCancelClickListener(listener: () -> Unit) {
+        onCancelClick = listener
     }
 
     fun updateState(state: VoiceInputManager.VoiceState) {
@@ -204,6 +225,15 @@ class VoiceInputModeView @JvmOverloads constructor(
 
         // Announce state change for screen readers
         announceForAccessibility(statusText.text)
+
+        // Show cancel button during TRANSCRIBING, back button otherwise
+        if (state == VoiceInputManager.VoiceState.TRANSCRIBING) {
+            cancelButton.visibility = View.VISIBLE
+            backButton.visibility = View.GONE
+        } else {
+            cancelButton.visibility = View.GONE
+            backButton.visibility = View.VISIBLE
+        }
 
         // Hide progress bar when actively recording/transcribing
         if (state != VoiceInputManager.VoiceState.IDLE) {

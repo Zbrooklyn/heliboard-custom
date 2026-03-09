@@ -365,7 +365,8 @@ class VoiceInputManager(
                     sumSquares += s.toDouble() * s.toDouble()
                 }
                 val rmsEnergy = kotlin.math.sqrt(sumSquares / samples.size)
-                if (rmsEnergy < 200.0) { // ~200 RMS threshold for speech vs silence (16-bit PCM)
+                Log.d(TAG, "RMS energy: ${"%.1f".format(rmsEnergy)} (${samples.size} samples)")
+                if (rmsEnergy < 50.0) { // ~50 RMS threshold — low to avoid rejecting quiet speech
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "No speech detected", Toast.LENGTH_SHORT).show()
                         state = VoiceState.IDLE

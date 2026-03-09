@@ -1618,6 +1618,13 @@ public class LatinIME extends InputMethodService implements
                                 mKeyboardSwitcher.exitVoiceInputMode();
                                 return kotlin.Unit.INSTANCE;
                             });
+                            vv.setOnCancelClickListener(() -> {
+                                if (mVoiceInputManager != null) {
+                                    mVoiceInputManager.cancelRecording();
+                                }
+                                mKeyboardSwitcher.exitVoiceInputMode();
+                                return kotlin.Unit.INSTANCE;
+                            });
                         }
                         break;
                     case TRANSCRIBING:
