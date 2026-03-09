@@ -52,6 +52,9 @@ class VoiceInputManager(
     private val recorder = Recorder()
     @Volatile
     private var whisperContext: WhisperContext? = null
+    /** Tracks loaded model path to determine language (English-only vs multilingual). */
+    @Volatile
+    private var loadedModelPath: String? = null
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     @Volatile
     private var state = VoiceState.IDLE
@@ -72,9 +75,9 @@ class VoiceInputManager(
         private const val TAG = "VoiceInputManager"
         /** Max recording duration in milliseconds (5 minutes). */
         private const val MAX_RECORDING_DURATION_MS = 5 * 60 * 1000L
-        /** Max local transcription timeout in milliseconds (3 minutes).
-         *  Some devices need 30x real-time for whisper.cpp inference. */
-        private const val LOCAL_TRANSCRIBE_TIMEOUT_MS = 180_000L
+        /** Max local transcription timeout in milliseconds (2 minutes).
+         *  With correct language hint, inference should be ~15-20x real-time on slow devices. */
+        private const val LOCAL_TRANSCRIBE_TIMEOUT_MS = 120_000L
 
         /** Known Whisper hallucination phrases — filter these from local transcription results. */
         private val HALLUCINATION_PHRASES = setOf(
@@ -112,6 +115,7 @@ class VoiceInputManager(
                 Log.d(TAG, "Loading whisper model from: $modelPath")
                 val startMs = System.currentTimeMillis()
                 whisperContext = WhisperContext.createContextFromFile(modelPath)
+                loadedModelPath = modelPath
                 val elapsed = System.currentTimeMillis() - startMs
                 Log.d(TAG, "Whisper model loaded successfully in ${elapsed}ms")
                 withContext(Dispatchers.Main) {
@@ -140,6 +144,7 @@ class VoiceInputManager(
         }
         val ctx = whisperContext
         whisperContext = null
+        loadedModelPath = null
         scope.launch {
             try {
                 ctx?.release()
@@ -405,8 +410,11 @@ class VoiceInputManager(
             return
         }
         try {
+            // English-only models (.en.) don't support language detection — passing "auto"
+            // forces an extra encoder pass that roughly doubles inference time for no benefit.
+            val lang = if (loadedModelPath?.contains(".en") == true) "en" else "auto"
             val text = withTimeout(LOCAL_TRANSCRIBE_TIMEOUT_MS) {
-                ctx.transcribeData(floats, printTimestamp = false)
+                ctx.transcribeData(floats, printTimestamp = false, language = lang)
             }
             withContext(Dispatchers.Main) {
                 if (text.isNullOrBlank() || isHallucination(text)) {
