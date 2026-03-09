@@ -1,9 +1,12 @@
 package helium314.keyboard.latin.voice
 
 import android.content.Context
+import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
+import android.text.InputType
 import android.util.Log
+import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import com.whispercpp.whisper.WhisperContext
 import helium314.keyboard.latin.ai.WhisperCloudClient
@@ -438,14 +441,14 @@ class VoiceInputManager(
         }
 
         // Block cloud STT in privacy-sensitive contexts
-        val ims = context as? android.view.inputmethod.InputMethodService
+        val ims = context as? InputMethodService
         val ei = ims?.currentInputEditorInfo
         if (ei != null) {
-            val variation = ei.inputType and android.text.InputType.TYPE_MASK_VARIATION
-            val isPassword = variation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-                || variation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                || variation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-            val noLearning = (ei.imeOptions and android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
+            val variation = ei.inputType and InputType.TYPE_MASK_VARIATION
+            val isPassword = variation == InputType.TYPE_TEXT_VARIATION_PASSWORD
+                || variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+            val noLearning = (ei.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
 
             if (isPassword || noLearning) {
                 Log.d(TAG, "Cloud STT blocked — sensitive field (password=$isPassword, noLearning=$noLearning)")
