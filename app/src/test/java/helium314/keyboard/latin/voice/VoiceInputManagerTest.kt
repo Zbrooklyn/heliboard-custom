@@ -200,16 +200,15 @@ class VoiceInputManagerTest {
      * Robolectric (packageName + "_preferences").
      */
     private fun setSttModePref(mode: String) {
-        val prefName = context.packageName + "_preferences"
-        context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
-            .edit()
-            .putString(Settings.PREF_STT_MODE, mode)
-            .apply()
-        // Reset the cached static prefs so VoiceInputManager picks up the new value.
+        // Reset cached singleton first so DeviceProtectedUtils re-reads prefs.
         try {
             val prefsField = DeviceProtectedUtils::class.java.getDeclaredField("prefs")
             prefsField.isAccessible = true
             prefsField.set(null, null)
         } catch (_: Exception) { }
+        // Write to the same SharedPreferences that DeviceProtectedUtils.getSharedPreferences()
+        // will return. This must happen AFTER resetting the cached instance.
+        val prefs = DeviceProtectedUtils.getSharedPreferences(context)
+        prefs.edit().putString(Settings.PREF_STT_MODE, mode).commit()
     }
 }
