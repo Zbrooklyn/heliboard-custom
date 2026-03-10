@@ -14,8 +14,10 @@ import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.SecurePrefs
 import helium314.keyboard.latin.utils.prefs
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -63,6 +65,12 @@ class VoiceInputManager(
     private var audioFocusRequest: android.media.AudioFocusRequest? = null
     private var wakeLock: android.os.PowerManager.WakeLock? = null
 
+    // Active transcription job — tracked so cancel can abort it
+    private var transcriptionJob: Job? = null
+    // Guard against double model loading on rapid mic taps
+    @Volatile
+    private var isModelLoading = false
+
     // Google STT client — lazily initialized
     private var googleSttClient: GoogleSttClient? = null
 
@@ -78,6 +86,8 @@ class VoiceInputManager(
         /** Max local transcription timeout in milliseconds (2 minutes).
          *  With correct language hint, inference should be ~15-20x real-time on slow devices. */
         private const val LOCAL_TRANSCRIBE_TIMEOUT_MS = 120_000L
+        /** Timeout for Google STT to deliver results after stopAndFinalize() (10 seconds). */
+        private const val GOOGLE_STT_FINALIZE_TIMEOUT_MS = 10_000L
 
         /** Known Whisper hallucination phrases — filter these from local transcription results. */
         private val HALLUCINATION_PHRASES = setOf(
@@ -110,6 +120,11 @@ class VoiceInputManager(
 
     @JvmOverloads
     fun loadModel(modelPath: String, onLoaded: Runnable? = null) {
+        if (isModelLoading) {
+            Log.d(TAG, "Model load already in progress, ignoring duplicate request")
+            return
+        }
+        isModelLoading = true
         scope.launch {
             try {
                 Log.d(TAG, "Loading whisper model from: $modelPath")
@@ -119,11 +134,13 @@ class VoiceInputManager(
                 val elapsed = System.currentTimeMillis() - startMs
                 Log.d(TAG, "Whisper model loaded successfully in ${elapsed}ms")
                 withContext(Dispatchers.Main) {
+                    isModelLoading = false
                     onLoaded?.run()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load whisper model", e)
                 withContext(Dispatchers.Main) {
+                    isModelLoading = false
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
                     onLoaded?.run()
@@ -176,24 +193,24 @@ class VoiceInputManager(
 
     fun isRecording(): Boolean = state == VoiceState.LISTENING
 
-    /** Cancel any active recording without transcribing. Used when keyboard dismisses. */
+    /** Cancel any active recording or transcription. Used when keyboard dismisses or user taps cancel. */
     fun cancelRecording() {
+        mainHandler.removeCallbacks(maxRecordingRunnable)
+        mainHandler.removeCallbacks(googleSttTimeoutRunnable)
         if (state == VoiceState.LISTENING) {
-            mainHandler.removeCallbacks(maxRecordingRunnable)
             abandonAudioFocus()
             releaseWakeLock()
             scope.launch {
                 recorder.stopRecording() // discard samples
             }
-            state = VoiceState.IDLE
-            onStateChange.onStateChange(state)
         } else if (state == VoiceState.TRANSCRIBING) {
-            // Can't cancel whisper mid-transcription — just reset state.
-            // The transcription result will be discarded when it arrives
-            // because the InputConnection is already gone.
-            state = VoiceState.IDLE
-            onStateChange.onStateChange(state)
+            // Cancel the active transcription coroutine (cloud HTTP or local whisper timeout wrapper)
+            transcriptionJob?.cancel()
+            transcriptionJob = null
+            releaseWakeLock()
         }
+        state = VoiceState.IDLE
+        onStateChange.onStateChange(state)
         // Cancel Google STT if active
         googleSttClient?.cancel()
         googleSttClient = null
@@ -281,6 +298,7 @@ class VoiceInputManager(
             client.startListening(
                 onResult = { text ->
                     // Only called when user explicitly stops via stopAndFinalize()
+                    mainHandler.removeCallbacks(googleSttTimeoutRunnable)
                     state = VoiceState.IDLE
                     if (text.isNullOrBlank()) {
                         onResult.onResult("")
@@ -291,6 +309,7 @@ class VoiceInputManager(
                 },
                 onError = { errorMessage ->
                     Log.e(TAG, "Google STT error: $errorMessage")
+                    mainHandler.removeCallbacks(googleSttTimeoutRunnable)
                     releaseWakeLock()
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
@@ -328,12 +347,27 @@ class VoiceInputManager(
         }
     }
 
-    /** Stop Google STT — finalizes all accumulated text and delivers via callback. */
+    /** Stop Google STT — finalizes all accumulated text and delivers via callback.
+     *  Includes a timeout to prevent stuck TRANSCRIBING state if SpeechRecognizer never calls back. */
     private fun stopGoogleStt() {
         state = VoiceState.TRANSCRIBING
         onStateChange.onStateChange(state)
         mainHandler.post {
             googleSttClient?.stopAndFinalize()
+        }
+        // Safety timeout — if Google never delivers results, force recovery
+        mainHandler.postDelayed(googleSttTimeoutRunnable, GOOGLE_STT_FINALIZE_TIMEOUT_MS)
+    }
+
+    private val googleSttTimeoutRunnable = Runnable {
+        if (state == VoiceState.TRANSCRIBING && isGoogleMode()) {
+            Log.w(TAG, "Google STT finalize timed out after ${GOOGLE_STT_FINALIZE_TIMEOUT_MS / 1000}s — forcing recovery")
+            // Force-deliver whatever accumulated text exists, then clean up
+            googleSttClient?.cancel()
+            googleSttClient = null
+            state = VoiceState.IDLE
+            onResult.onResult("") // deliver empty — better than being stuck
+            onStateChange.onStateChange(state)
         }
     }
 
@@ -341,7 +375,7 @@ class VoiceInputManager(
     private fun stopWhisperAndTranscribe() {
         state = VoiceState.TRANSCRIBING
         onStateChange.onStateChange(state)
-        scope.launch {
+        transcriptionJob = scope.launch {
             try {
                 val samples = recorder.stopRecording()
                 if (samples.isEmpty()) {
@@ -386,12 +420,17 @@ class VoiceInputManager(
                 } else {
                     transcribeLocal(samples)
                 }
+            } catch (e: CancellationException) {
+                // Job was cancelled by user (cancel button) — state already set to IDLE
+                Log.d(TAG, "Transcription cancelled by user")
             } catch (e: Exception) {
                 Log.e(TAG, "Transcription failed", e)
                 withContext(Dispatchers.Main) {
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
                 }
+            } finally {
+                transcriptionJob = null
             }
         }
     }
@@ -600,6 +639,9 @@ class VoiceInputManager(
         abandonAudioFocus()
         releaseWakeLock()
         mainHandler.removeCallbacks(maxRecordingRunnable)
+        mainHandler.removeCallbacks(googleSttTimeoutRunnable)
+        transcriptionJob?.cancel()
+        transcriptionJob = null
         // Cancel Google STT if active
         googleSttClient?.cancel()
         googleSttClient = null
