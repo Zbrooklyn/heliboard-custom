@@ -261,7 +261,7 @@ class VoiceInputManager(
     }
 
     private val maxRecordingRunnable = Runnable {
-        if (state == VoiceState.LISTENING && !isGoogleMode()) {
+        if (state == VoiceState.LISTENING) {
             Log.d(TAG, "Max recording duration reached (${MAX_RECORDING_DURATION_MS / 1000}s), auto-stopping")
             mainHandler.post {
                 Toast.makeText(context, "Max recording length reached", Toast.LENGTH_SHORT).show()
@@ -272,6 +272,13 @@ class VoiceInputManager(
 
     /** Start Google SpeechRecognizer in continuous mode. Must run on main thread. */
     private fun startGoogleStt() {
+        // Google STT sends audio to Google servers — apply same privacy guards as cloud
+        if (isSensitiveContext()) {
+            state = VoiceState.ERROR
+            onStateChange.onStateChange(state)
+            return
+        }
+
         // Do NOT request audio focus for Google STT — SpeechRecognizer manages
         // its own audio focus internally. Requesting it ourselves causes a conflict:
         // Google grabs focus → our listener fires AUDIOFOCUS_LOSS → we auto-stop.
@@ -293,12 +300,16 @@ class VoiceInputManager(
             helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtypeLocale
         } catch (_: Exception) { null }
 
+        // Apply same max recording duration as whisper modes
+        mainHandler.postDelayed(maxRecordingRunnable, MAX_RECORDING_DURATION_MS)
+
         // SpeechRecognizer must be started from main thread
         mainHandler.post {
             client.startListening(
                 onResult = { text ->
                     // Only called when user explicitly stops via stopAndFinalize()
                     mainHandler.removeCallbacks(googleSttTimeoutRunnable)
+                    releaseWakeLock()
                     state = VoiceState.IDLE
                     if (text.isNullOrBlank()) {
                         onResult.onResult("")
@@ -311,6 +322,7 @@ class VoiceInputManager(
                     Log.e(TAG, "Google STT error: $errorMessage")
                     mainHandler.removeCallbacks(googleSttTimeoutRunnable)
                     releaseWakeLock()
+                    onErrorDetail?.onErrorDetail(errorMessage)
                     state = VoiceState.ERROR
                     onStateChange.onStateChange(state)
                 },
@@ -489,32 +501,10 @@ class VoiceInputManager(
             return
         }
 
-        // Block cloud STT in privacy-sensitive contexts
-        val ims = context as? InputMethodService
-        val ei = ims?.currentInputEditorInfo
-        if (ei != null) {
-            val variation = ei.inputType and InputType.TYPE_MASK_VARIATION
-            val isPassword = variation == InputType.TYPE_TEXT_VARIATION_PASSWORD
-                || variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-            val noLearning = (ei.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
-
-            if (isPassword || noLearning) {
-                Log.d(TAG, "Cloud STT blocked — sensitive field (password=$isPassword, noLearning=$noLearning)")
-                withContext(Dispatchers.Main) {
-                    onErrorDetail?.onErrorDetail("Cloud STT disabled for sensitive fields — switch to Local mode")
-                    state = VoiceState.ERROR
-                    onStateChange.onStateChange(state)
-                }
-                return
-            }
-        }
-
-        // Check incognito mode
-        if (prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE)) {
-            Log.d(TAG, "Cloud STT blocked — incognito mode active")
+        // Block cloud STT in privacy-sensitive contexts (shared check with Google STT)
+        val blocked = withContext(Dispatchers.Main) { isSensitiveContext() }
+        if (blocked) {
             withContext(Dispatchers.Main) {
-                onErrorDetail?.onErrorDetail("Cloud STT disabled in incognito mode — switch to Local mode")
                 state = VoiceState.ERROR
                 onStateChange.onStateChange(state)
             }
@@ -561,6 +551,33 @@ class VoiceInputManager(
         prefs.edit().putString(Settings.PREF_STT_MODE, newMode).apply()
         Log.d(TAG, "STT mode toggled: $current → $newMode")
         return newMode
+    }
+
+    /** Check if the current context is sensitive (password, no-learning, incognito).
+     *  Used to block network-sending STT modes (cloud and Google). Returns true and
+     *  fires onErrorDetail if blocked. */
+    private fun isSensitiveContext(): Boolean {
+        val prefs = context.prefs()
+        val ims = context as? InputMethodService
+        val ei = ims?.currentInputEditorInfo
+        if (ei != null) {
+            val variation = ei.inputType and InputType.TYPE_MASK_VARIATION
+            val isPassword = variation == InputType.TYPE_TEXT_VARIATION_PASSWORD
+                || variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+            val noLearning = (ei.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
+            if (isPassword || noLearning) {
+                Log.d(TAG, "Network STT blocked — sensitive field (password=$isPassword, noLearning=$noLearning)")
+                onErrorDetail?.onErrorDetail("Network STT disabled for sensitive fields — switch to Local mode")
+                return true
+            }
+        }
+        if (prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE)) {
+            Log.d(TAG, "Network STT blocked — incognito mode active")
+            onErrorDetail?.onErrorDetail("Network STT disabled in incognito mode — switch to Local mode")
+            return true
+        }
+        return false
     }
 
     /** Get display label for an STT mode. */
