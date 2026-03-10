@@ -18,6 +18,8 @@ import helium314.keyboard.latin.common.Colors
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.getCodeForToolbarKey
+import helium314.keyboard.latin.utils.getAllToolbarKeys
+import helium314.keyboard.latin.utils.prefs
 
 /**
  * Samsung-style 4x3 feature drawer grid that appears when "..." overflow is tapped.
@@ -75,7 +77,8 @@ class FeatureDrawerView @JvmOverloads constructor(
     fun populateGrid(colors: Colors) {
         gridLayout.removeAllViews()
 
-        val items = getDrawerItems()
+        val items = getDrawerItems(context)
+        gridLayout.rowCount = (items.size + 3) / 4 // ceil(items / columns)
         val density = resources.displayMetrics.density
         val circleColor = colors.get(ColorType.KEY_BACKGROUND)
         val textColor = colors.get(ColorType.KEY_TEXT)
@@ -139,8 +142,8 @@ class FeatureDrawerView @JvmOverloads constructor(
     }
 
     companion object {
-        /** Default 4x3 grid items. Row 1: core features, Row 2: layout, Row 3: modes */
-        fun getDrawerItems(): List<DrawerItem> = listOf(
+        /** All possible drawer items with their toolbar key, label, and key code */
+        private val allDrawerItems = listOf(
             // Row 1: Core features
             DrawerItem(ToolbarKey.VOICE, R.string.voice, KeyCode.VOICE_INPUT),
             DrawerItem(ToolbarKey.REWRITE, R.string.rewrite, KeyCode.REWRITE),
@@ -157,5 +160,11 @@ class FeatureDrawerView @JvmOverloads constructor(
             DrawerItem(ToolbarKey.SELECT_ALL, R.string.select_all, KeyCode.CLIPBOARD_SELECT_ALL),
             DrawerItem(ToolbarKey.RESIZE, R.string.resize_keyboard, KeyCode.TOGGLE_RESIZE_KEYBOARD),
         )
+
+        /** Returns drawer items based on keys present in toolbar prefs (enabled + disabled) */
+        fun getDrawerItems(context: Context): List<DrawerItem> {
+            val allKeys = getAllToolbarKeys(context.prefs()).toSet()
+            return allDrawerItems.filter { it.key in allKeys }
+        }
     }
 }

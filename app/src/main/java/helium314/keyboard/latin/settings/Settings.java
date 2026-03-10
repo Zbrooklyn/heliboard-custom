@@ -177,6 +177,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_SPACE_BAR_TEXT = "space_bar_text";
     public static final String PREF_TIMESTAMP_FORMAT = "timestamp_format";
     public static final String PREF_TOOLBAR_MODE = "toolbar_mode";
+    public static final String PREF_TOOLBAR_MODE_BEFORE_HIDE = "toolbar_mode_before_hide";
     public static final String PREF_TOOLBAR_HIDING_GLOBAL = "toolbar_hiding_global";
 
     // Emoji

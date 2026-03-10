@@ -8,14 +8,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.Setting
 import helium314.keyboard.settings.dialogs.TextInputDialog
 import androidx.core.content.edit
 
 @Composable
-fun TextInputPreference(setting: Setting, default: String, info: String? = null, checkTextValid: (String) -> Boolean = { true }) {
+fun TextInputPreference(
+    setting: Setting,
+    default: String,
+    info: String? = null,
+    onConfirmed: () -> Unit = { },
+    checkTextValid: (String) -> Boolean = { true }
+) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
     val prefs = LocalContext.current.prefs()
     Preference(
@@ -28,7 +33,7 @@ fun TextInputPreference(setting: Setting, default: String, info: String? = null,
             onDismissRequest = { showDialog = false },
             onConfirmed = {
                 prefs.edit { putString(setting.key, it) }
-                KeyboardSwitcher.getInstance().reloadKeyboard()
+                onConfirmed()
             },
             initialText = prefs.getString(setting.key, default) ?: "",
             title = { Text(setting.title) },

@@ -275,7 +275,7 @@ fun createAppearanceSettings(context: Context) = listOf(
         ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
     },
     Setting(context, Settings.PREF_SPACE_BAR_TEXT, R.string.prefs_space_bar_text) {
-        TextInputPreference(it, Defaults.PREF_SPACE_BAR_TEXT)
+        TextInputPreference(it, Defaults.PREF_SPACE_BAR_TEXT, onConfirmed = { KeyboardSwitcher.getInstance().setThemeNeedsReload() })
     },
     Setting(context, SettingsWithoutKey.CUSTOM_FONT, R.string.custom_font) {
         CustomFontPreference(it, Settings.getCustomFontFile(LocalContext.current), R.string.custom_font)
@@ -313,7 +313,7 @@ fun createAppearanceSettings(context: Context) = listOf(
             "\uD83C\uDFFE" to "\uD83C\uDFFE",
             "\uD83C\uDFFF" to "\uD83C\uDFFF"
         )
-        ListPreference(setting, items, Defaults.PREF_EMOJI_SKIN_TONE) { KeyboardSwitcher.getInstance().reloadKeyboard() }
+        ListPreference(setting, items, Defaults.PREF_EMOJI_SKIN_TONE) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
     },
 )
 

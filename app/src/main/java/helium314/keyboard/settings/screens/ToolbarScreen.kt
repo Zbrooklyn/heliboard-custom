@@ -41,6 +41,7 @@ import helium314.keyboard.settings.dialogs.ToolbarKeysCustomizer
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.preferences.Preference
 import helium314.keyboard.settings.preferences.ReorderSwitchPreference
+import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.settings.preferences.SwitchPreference
 import helium314.keyboard.settings.previewDark
 
@@ -72,19 +73,36 @@ fun createToolbarSettings(context: Context) = listOf(
         val prefs = ctx.prefs()
         val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
         if ((b?.value ?: 0) < 0) { /* trigger recomposition */ }
-        val isOn = prefs.getString(Settings.PREF_TOOLBAR_MODE, Defaults.PREF_TOOLBAR_MODE) != "HIDDEN"
+        val currentMode = prefs.getString(Settings.PREF_TOOLBAR_MODE, Defaults.PREF_TOOLBAR_MODE)!!
+        val isOn = currentMode != "HIDDEN"
         Preference(
             name = it.title,
             onClick = {
-                val newMode = if (isOn) "HIDDEN" else "TOOLBAR_KEYS"
-                prefs.edit { putString(Settings.PREF_TOOLBAR_MODE, newMode) }
+                if (isOn) {
+                    prefs.edit {
+                        putString(Settings.PREF_TOOLBAR_MODE_BEFORE_HIDE, currentMode)
+                        putString(Settings.PREF_TOOLBAR_MODE, "HIDDEN")
+                    }
+                } else {
+                    val restored = prefs.getString(Settings.PREF_TOOLBAR_MODE_BEFORE_HIDE, Defaults.PREF_TOOLBAR_MODE)!!
+                    prefs.edit { putString(Settings.PREF_TOOLBAR_MODE, restored) }
+                }
+                KeyboardSwitcher.getInstance().setThemeNeedsReload()
             },
         ) {
             Switch(
                 checked = isOn,
                 onCheckedChange = { checked ->
-                    val newMode = if (checked) "TOOLBAR_KEYS" else "HIDDEN"
-                    prefs.edit { putString(Settings.PREF_TOOLBAR_MODE, newMode) }
+                    if (!checked) {
+                        prefs.edit {
+                            putString(Settings.PREF_TOOLBAR_MODE_BEFORE_HIDE, currentMode)
+                            putString(Settings.PREF_TOOLBAR_MODE, "HIDDEN")
+                        }
+                    } else {
+                        val restored = prefs.getString(Settings.PREF_TOOLBAR_MODE_BEFORE_HIDE, Defaults.PREF_TOOLBAR_MODE)!!
+                        prefs.edit { putString(Settings.PREF_TOOLBAR_MODE, restored) }
+                    }
+                    KeyboardSwitcher.getInstance().setThemeNeedsReload()
                 },
             )
         }
@@ -93,7 +111,9 @@ fun createToolbarSettings(context: Context) = listOf(
         ReorderSwitchPreference(it, Defaults.PREF_TOOLBAR_KEYS)
     },
     Setting(context, Settings.PREF_SHOW_ACTION_BAR, R.string.show_action_bar) {
-        SwitchPreference(it, Defaults.PREF_SHOW_ACTION_BAR)
+        SwitchPreference(it, Defaults.PREF_SHOW_ACTION_BAR) {
+            KeyboardSwitcher.getInstance().setThemeNeedsReload()
+        }
     },
     Setting(context, Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, R.string.clipboard_toolbar_keys) {
         ReorderSwitchPreference(it, Defaults.PREF_CLIPBOARD_TOOLBAR_KEYS)

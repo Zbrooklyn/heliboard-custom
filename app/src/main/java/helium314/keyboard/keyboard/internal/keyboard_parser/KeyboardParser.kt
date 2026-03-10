@@ -69,8 +69,10 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
         if (params.mId.isEmojiClipBottomRow) {
             heightRescale = 4f
             // params rescale is not perfect, especially mTopPadding may cause 1 pixel offsets because it's already been converted to int once
-            // row count: 4 base + number row (if enabled) + action row (always on alpha)
-            val rowCount = 4 + (if (Settings.getValues().mShowsNumberRow) 1 else 0) + 1 // +1 for action row
+            // row count: 4 base + number row (if enabled) + action row (if enabled with keys)
+            val actionBarVisible = context.prefs().getBoolean(Settings.PREF_SHOW_ACTION_BAR, Defaults.PREF_SHOW_ACTION_BAR)
+                    && getEnabledClipboardToolbarKeys(context.prefs()).isNotEmpty()
+            val rowCount = 4 + (if (Settings.getValues().mShowsNumberRow) 1 else 0) + (if (actionBarVisible) 1 else 0)
             params.mOccupiedHeight /= rowCount
             params.mBaseHeight /= rowCount
             params.mTopPadding = (params.mTopPadding / rowCount.toDouble()).roundToInt()

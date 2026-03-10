@@ -206,6 +206,18 @@ fun getPinnedToolbarKeys(prefs: SharedPreferences) = getEnabledToolbarKeys(prefs
 
 fun getEnabledClipboardToolbarKeys(prefs: SharedPreferences) = getEnabledToolbarKeys(prefs, Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, defaultClipboardToolbarPref)
 
+/** Returns all toolbar keys from the pref (both enabled and disabled) */
+fun getAllToolbarKeys(prefs: SharedPreferences): List<ToolbarKey> {
+    val string = prefs.getString(Settings.PREF_TOOLBAR_KEYS, defaultToolbarPref)!!
+    return string.split(Separators.ENTRY).mapNotNull {
+        try {
+            ToolbarKey.valueOf(it.split(Separators.KV).first())
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
+}
+
 fun addPinnedKey(prefs: SharedPreferences, key: ToolbarKey) {
     // remove the existing version of this key and add the enabled one after the last currently enabled key
     val string = prefs.getString(Settings.PREF_PINNED_TOOLBAR_KEYS, defaultPinnedToolbarPref)!!
