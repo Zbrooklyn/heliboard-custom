@@ -1541,35 +1541,20 @@ public class LatinIME extends InputMethodService implements
 
                         String pkg = (ei != null) ? ei.packageName : "unknown";
                         ActivityLog.INSTANCE.log("Voice",
-                            "Commit strategy: " + (isTypeNull ? "KEY_EVENTS (terminal)" : "COMMIT_TEXT")
+                            "Commit strategy: COMMIT_TEXT"
+                            + (isTypeNull ? " (TYPE_NULL)" : "")
                             + " | app=" + pkg + " | inputType=0x" + Integer.toHexString(inputType));
 
-                        if (isTypeNull) {
-                            // TYPE_NULL fields (terminals, games) — send per-character key events.
-                            // Single KEYCODE_UNKNOWN with full string doesn't work in most
-                            // terminal emulators (Termux, ConnectBot, etc.). Samsung keyboard
-                            // sends individual events, which is why it works everywhere.
-                            android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
-                            if (ic != null) {
-                                ic.beginBatchEdit();
-                                ic.finishComposingText();
-                                for (int i = 0; i < committed.length(); i++) {
-                                    char c = committed.charAt(i);
-                                    long now = android.os.SystemClock.uptimeMillis();
-                                    // Send each character as a KEYCODE_UNKNOWN KeyEvent
-                                    // with the character in the text field — this is the
-                                    // standard way terminals receive Unicode input.
-                                    KeyEvent down = new KeyEvent(now, String.valueOf(c),
-                                        KeyCharacterMap.VIRTUAL_KEYBOARD, 0);
-                                    ic.sendKeyEvent(down);
-                                }
-                                ic.endBatchEdit();
-                            }
-                        } else {
-                            mInputLogic.mConnection.beginBatchEdit();
-                            mInputLogic.mConnection.finishComposingText();
-                            mInputLogic.mConnection.commitText(committed, 1);
-                            mInputLogic.mConnection.endBatchEdit();
+                        // Use commitText() universally — works in normal apps AND
+                        // terminals (Termux, ConnectBot, etc.) because they implement
+                        // commitText() in their InputConnection to write to the terminal.
+                        // sendKeyEvent with KEYCODE_UNKNOWN does NOT work in most terminals.
+                        android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
+                        if (ic != null) {
+                            ic.beginBatchEdit();
+                            ic.finishComposingText();
+                            ic.commitText(committed, 1);
+                            ic.endBatchEdit();
                         }
 
                         // Store for undo and show undo chip
