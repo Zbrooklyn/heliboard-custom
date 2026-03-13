@@ -307,8 +307,9 @@ class VoiceInputManager(
         mainHandler.post {
             client.startListening(
                 onResult = { text ->
-                    // Only called when user explicitly stops via stopAndFinalize()
+                    // Called on user stop OR auto-finalize after silence
                     mainHandler.removeCallbacks(googleSttTimeoutRunnable)
+                    mainHandler.removeCallbacks(maxRecordingRunnable)
                     releaseWakeLock()
                     state = VoiceState.IDLE
                     if (text.isNullOrBlank()) {
@@ -321,6 +322,7 @@ class VoiceInputManager(
                 onError = { errorMessage ->
                     Log.e(TAG, "Google STT error: $errorMessage")
                     mainHandler.removeCallbacks(googleSttTimeoutRunnable)
+                    mainHandler.removeCallbacks(maxRecordingRunnable)
                     releaseWakeLock()
                     onErrorDetail?.onErrorDetail(errorMessage)
                     state = VoiceState.ERROR
