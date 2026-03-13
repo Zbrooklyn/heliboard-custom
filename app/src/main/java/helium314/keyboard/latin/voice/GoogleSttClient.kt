@@ -13,10 +13,14 @@ import android.util.Log
  * Google on-device speech-to-text using Android's SpeechRecognizer API.
  * No API key needed — uses the device's built-in Google speech recognition.
  *
- * Operates in continuous mode: when the recognizer auto-stops (silence timeout,
- * end of utterance), it accumulates the result and auto-restarts. Recording stops
- * when [stopAndFinalize] is called explicitly, or automatically after a silence
- * period following accumulated speech (Samsung-like auto-submit behavior).
+ * Operates in persistent voice mode: the recognizer stays alive, accumulating
+ * and auto-submitting text chunks on silence. Voice mode only exits when
+ * [stopAndFinalize] is called explicitly by the user (mic tap / keyboard button).
+ *
+ * Two callback types:
+ * - [ChunkCallback] — fired on auto-submit after silence. Text is delivered
+ *   but the recognizer keeps listening for more speech.
+ * - [ResultCallback] — fired on user-initiated stop. Final delivery, session ends.
  *
  * Must be called from the main thread.
  */
@@ -27,14 +31,13 @@ class GoogleSttClient(private val context: Context) {
     private var isListening = false
     @Volatile
     private var userStopped = false
-    @Volatile
-    private var finalized = false
 
-    // Accumulated text from multiple recognition sessions
+    // Accumulated text from the current speech segment
     private val accumulatedText = StringBuilder()
 
-    // Callbacks — stored for auto-restart
+    // Callbacks
     private var currentOnResult: ResultCallback? = null
+    private var currentOnChunk: ChunkCallback? = null
     private var currentOnError: ErrorCallback? = null
     private var currentOnPartial: PartialCallback? = null
 
@@ -43,24 +46,24 @@ class GoogleSttClient(private val context: Context) {
     /** Counts consecutive silence restarts (no speech detected). Reset when speech is received. */
     private var silenceRestartCount = 0
 
-    /** Auto-finalize after silence — delivers accumulated text without user tapping mic. */
-    private val autoFinalizeRunnable = Runnable {
-        if (!userStopped && !finalized && accumulatedText.isNotEmpty()) {
-            Log.d(TAG, "Auto-finalizing after silence (${AUTO_FINALIZE_SILENCE_MS / 1000}s)")
-            safeFinalize()
+    /** Auto-submit chunk after silence — delivers text but keeps listening. */
+    private val autoSubmitRunnable = Runnable {
+        if (!userStopped && accumulatedText.isNotEmpty()) {
+            Log.d(TAG, "Auto-submitting chunk after silence (${AUTO_SUBMIT_SILENCE_MS / 1000}s)")
+            submitChunkAndContinue()
         }
     }
 
     /** Restart runnable — separated so it can be cancelled independently. */
     private val restartRunnable = Runnable {
-        if (!userStopped && !finalized) {
+        if (!userStopped) {
             startRecognizer()
         }
     }
 
     companion object {
         private const val TAG = "GoogleSttClient"
-        private const val MAX_ACCUMULATED_CHARS = 10000 // ~2000 words
+        private const val MAX_ACCUMULATED_CHARS = 10000
 
         /** Delay before restarting recognizer to let it fully shut down. */
         private const val RESTART_DELAY_MS = 200L
@@ -72,9 +75,9 @@ class GoogleSttClient(private val context: Context) {
         /** Minimum speech duration before silence detection kicks in. */
         private const val MINIMUM_LENGTH_MS = 2000L
 
-        /** After receiving results, if no new speech for this long, auto-submit. */
-        private const val AUTO_FINALIZE_SILENCE_MS = 5000L
-        /** Max consecutive silence cycles before auto-finalizing (prevents endless restart loop). */
+        /** After receiving results, if no new speech for this long, auto-submit the chunk. */
+        private const val AUTO_SUBMIT_SILENCE_MS = 5000L
+        /** Max consecutive silence cycles before auto-submitting a chunk. */
         private const val MAX_SILENCE_RESTARTS = 2
 
         private fun errorCodeToString(error: Int): String = when (error) {
@@ -100,8 +103,14 @@ class GoogleSttClient(private val context: Context) {
         }
     }
 
+    /** Called on user-initiated stop — final delivery, session ends. */
     fun interface ResultCallback {
         fun onResult(text: String?)
+    }
+
+    /** Called on auto-submit after silence — text delivered, keeps listening. */
+    fun interface ChunkCallback {
+        fun onChunk(text: String)
     }
 
     fun interface ErrorCallback {
@@ -117,17 +126,17 @@ class GoogleSttClient(private val context: Context) {
         return SpeechRecognizer.isRecognitionAvailable(context)
     }
 
-    /**
-     * Start continuous listening. Results accumulate until [stopAndFinalize] is called
-     * or auto-finalize triggers after silence.
-     * Partial results are delivered via [onPartial] for live preview.
-     */
-    // Language and offline preference — set by startListening(), used by startRecognizer()
+    // Language and offline preference
     private var requestedLocale: java.util.Locale? = null
     private var requestedOffline: Boolean = false
 
+    /**
+     * Start persistent voice mode. Auto-submits text chunks on silence via [onChunk].
+     * Only exits when [stopAndFinalize] is called, delivering any remaining text via [onResult].
+     */
     fun startListening(
         onResult: ResultCallback,
+        onChunk: ChunkCallback? = null,
         onError: ErrorCallback,
         onListeningStarted: (() -> Unit)? = null,
         onPartial: PartialCallback? = null,
@@ -140,10 +149,10 @@ class GoogleSttClient(private val context: Context) {
         }
 
         userStopped = false
-        finalized = false
         silenceRestartCount = 0
         accumulatedText.clear()
         currentOnResult = onResult
+        currentOnChunk = onChunk
         currentOnError = onError
         currentOnPartial = onPartial
         requestedLocale = locale
@@ -153,8 +162,7 @@ class GoogleSttClient(private val context: Context) {
     }
 
     private fun startRecognizer(onListeningStarted: (() -> Unit)? = null) {
-        // Don't start if already finalized or user stopped
-        if (finalized || userStopped) return
+        if (userStopped) return
 
         destroyRecognizer()
 
@@ -174,8 +182,7 @@ class GoogleSttClient(private val context: Context) {
             if (requestedOffline) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
-            // Extend silence timeouts for dictation — Google's defaults (~1.5s) are too
-            // aggressive for natural speech with pauses. These give the user time to think.
+            // Extend silence timeouts for dictation
             putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", COMPLETE_SILENCE_MS)
             putExtra("android.speech.extra.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", POSSIBLY_COMPLETE_SILENCE_MS)
             putExtra("android.speech.extra.SPEECH_INPUT_MINIMUM_LENGTH_MILLIS", MINIMUM_LENGTH_MS)
@@ -190,8 +197,8 @@ class GoogleSttClient(private val context: Context) {
 
             override fun onBeginningOfSpeech() {
                 Log.d(TAG, "Speech started")
-                // User started talking again — cancel auto-finalize and reset silence count
-                mainHandler.removeCallbacks(autoFinalizeRunnable)
+                // User started talking — cancel auto-submit and reset silence count
+                mainHandler.removeCallbacks(autoSubmitRunnable)
                 silenceRestartCount = 0
             }
 
@@ -199,50 +206,35 @@ class GoogleSttClient(private val context: Context) {
             override fun onBufferReceived(buffer: ByteArray?) {}
 
             override fun onEndOfSpeech() {
-                Log.d(TAG, "Speech ended (will auto-restart if user hasn't stopped)")
+                Log.d(TAG, "Speech ended")
             }
 
             override fun onError(error: Int) {
                 isListening = false
-                if (finalized || userStopped) return
+                if (userStopped) return
 
                 val msg = errorCodeToString(error)
                 Log.d(TAG, "Recognition cycle ended: $msg (code=$error)")
 
-                if (userStopped) {
-                    // User already stopped — deliver accumulated results
-                    safeFinalize()
-                    return
-                }
-
-                // Recoverable errors — auto-restart unless we've hit the silence limit
                 if (isRecoverableError(error)) {
-                    // Count silence-type restarts (no speech detected)
                     if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
                         error == SpeechRecognizer.ERROR_NO_MATCH) {
                         silenceRestartCount++
                     }
 
-                    // If we've hit the silence limit and have accumulated text, auto-submit
+                    // Hit silence limit with accumulated text — auto-submit chunk, keep going
                     if (silenceRestartCount >= MAX_SILENCE_RESTARTS && accumulatedText.isNotEmpty()) {
-                        Log.d(TAG, "Max silence restarts ($MAX_SILENCE_RESTARTS) reached — auto-finalizing")
-                        safeFinalize()
+                        Log.d(TAG, "Max silence restarts — auto-submitting chunk")
+                        submitChunkAndContinue()
                         return
                     }
 
-                    // If we've hit silence limit with NO text, just stop cleanly
-                    if (silenceRestartCount >= MAX_SILENCE_RESTARTS) {
-                        Log.d(TAG, "Max silence restarts with no text — stopping")
-                        safeFinalize()
-                        return
-                    }
-
-                    Log.d(TAG, "Auto-restarting after recoverable error (code=$error, silenceCount=$silenceRestartCount)")
+                    Log.d(TAG, "Auto-restarting (code=$error, silenceCount=$silenceRestartCount)")
                     scheduleRestart()
                     return
                 }
 
-                // Real errors — report to caller with error code for debugging
+                // Real errors — report to caller
                 Log.w(TAG, "Non-recoverable error (code=$error): $msg")
                 currentOnError?.onError("$msg (code=$error)")
                 destroyRecognizer()
@@ -250,12 +242,21 @@ class GoogleSttClient(private val context: Context) {
 
             override fun onResults(results: Bundle?) {
                 isListening = false
-                if (finalized) return
+                if (userStopped) {
+                    // Grab final text and deliver via stopAndFinalize path
+                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val text = matches?.firstOrNull()
+                    if (!text.isNullOrBlank()) {
+                        if (accumulatedText.isNotEmpty()) accumulatedText.append(" ")
+                        accumulatedText.append(text.trim())
+                    }
+                    deliverFinalResult()
+                    return
+                }
 
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = matches?.firstOrNull()
                 if (!text.isNullOrBlank()) {
-                    // Got real speech — reset silence counter
                     silenceRestartCount = 0
                     if (accumulatedText.length < MAX_ACCUMULATED_CHARS) {
                         if (accumulatedText.isNotEmpty()) accumulatedText.append(" ")
@@ -263,38 +264,31 @@ class GoogleSttClient(private val context: Context) {
                     }
                     Log.d(TAG, "Accumulated: ${accumulatedText.length} chars")
                 } else {
-                    // Empty result counts as silence
                     silenceRestartCount++
                 }
 
-                if (userStopped) {
-                    safeFinalize()
-                } else {
-                    // Schedule auto-finalize timer — if no new speech within the timeout,
-                    // auto-submit the accumulated text (Samsung-like behavior)
-                    mainHandler.removeCallbacks(autoFinalizeRunnable)
-                    if (accumulatedText.isNotEmpty()) {
-                        mainHandler.postDelayed(autoFinalizeRunnable, AUTO_FINALIZE_SILENCE_MS)
-                    }
-
-                    // Check if we've exceeded silence restarts (empty results loop)
-                    if (silenceRestartCount >= MAX_SILENCE_RESTARTS && accumulatedText.isNotEmpty()) {
-                        Log.d(TAG, "Max silence restarts from empty results — auto-finalizing")
-                        safeFinalize()
-                        return
-                    }
-
-                    // Auto-restart for continuous recording
-                    Log.d(TAG, "Auto-restarting for continuous recording")
-                    scheduleRestart()
+                // Start auto-submit timer — if no new speech, submit chunk and keep listening
+                mainHandler.removeCallbacks(autoSubmitRunnable)
+                if (accumulatedText.isNotEmpty()) {
+                    mainHandler.postDelayed(autoSubmitRunnable, AUTO_SUBMIT_SILENCE_MS)
                 }
+
+                // Check if we've exceeded silence restarts with text
+                if (silenceRestartCount >= MAX_SILENCE_RESTARTS && accumulatedText.isNotEmpty()) {
+                    Log.d(TAG, "Max silence restarts from empty results — auto-submitting chunk")
+                    submitChunkAndContinue()
+                    return
+                }
+
+                // Auto-restart for continuous recording
+                Log.d(TAG, "Auto-restarting for continuous recording")
+                scheduleRestart()
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
                 val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val partial = matches?.firstOrNull()
                 if (!partial.isNullOrBlank()) {
-                    // Show accumulated + current partial
                     val full = if (accumulatedText.isNotEmpty()) {
                         "${accumulatedText} $partial"
                     } else {
@@ -316,46 +310,61 @@ class GoogleSttClient(private val context: Context) {
         }
     }
 
-    /** Schedule a delayed restart, cancelling any previously pending one. */
+    /**
+     * Auto-submit the current accumulated text as a chunk, then keep listening.
+     * Does NOT exit voice mode.
+     */
+    private fun submitChunkAndContinue() {
+        cancelAllPending()
+        val chunk = accumulatedText.toString().trim()
+        accumulatedText.clear()
+        silenceRestartCount = 0
+
+        if (chunk.isNotEmpty()) {
+            Log.d(TAG, "Chunk submitted: ${chunk.take(50)}")
+            currentOnChunk?.onChunk(chunk)
+        }
+
+        // Keep listening — restart the recognizer
+        scheduleRestart()
+    }
+
     private fun scheduleRestart() {
         mainHandler.removeCallbacks(restartRunnable)
         mainHandler.postDelayed(restartRunnable, RESTART_DELAY_MS)
     }
 
-    /** Cancel all pending restarts and auto-finalize timers. */
     private fun cancelAllPending() {
         mainHandler.removeCallbacks(restartRunnable)
-        mainHandler.removeCallbacks(autoFinalizeRunnable)
+        mainHandler.removeCallbacks(autoSubmitRunnable)
     }
 
     /**
-     * User-initiated stop. Stops the recognizer and delivers all accumulated text.
-     * If the recognizer is between sessions (auto-restart gap), delivers immediately.
+     * User-initiated stop. Delivers any remaining accumulated text via [ResultCallback]
+     * and shuts down the session. This is the ONLY way to exit voice mode.
      */
     fun stopAndFinalize() {
         userStopped = true
         cancelAllPending()
         if (isListening) {
-            // Recognizer is active — stopListening() will trigger onResults/onError
             try {
                 speechRecognizer?.stopListening()
             } catch (_: Exception) { }
+            // onResults/onError will fire and see userStopped=true → deliverFinalResult()
         } else {
-            // Recognizer is between sessions (restart gap) — deliver now
-            safeFinalize()
+            deliverFinalResult()
         }
     }
 
-    /** Thread-safe finalize — prevents double-delivery. */
-    private fun safeFinalize() {
-        if (finalized) return
-        finalized = true
+    /** Deliver final result and clean up. Only called on user-initiated stop. */
+    private fun deliverFinalResult() {
         cancelAllPending()
         val result = accumulatedText.toString().trim().ifEmpty { null }
         Log.d(TAG, "Final result: ${result?.take(50) ?: "(empty)"}")
         currentOnResult?.onResult(result)
         accumulatedText.clear()
         currentOnResult = null
+        currentOnChunk = null
         currentOnError = null
         currentOnPartial = null
         destroyRecognizer()
@@ -369,11 +378,11 @@ class GoogleSttClient(private val context: Context) {
     /** Cancel and release resources without delivering results. */
     fun cancel() {
         userStopped = true
-        finalized = true
         isListening = false
         cancelAllPending()
         accumulatedText.clear()
         currentOnResult = null
+        currentOnChunk = null
         currentOnError = null
         currentOnPartial = null
         try {
@@ -382,7 +391,7 @@ class GoogleSttClient(private val context: Context) {
         destroyRecognizer()
     }
 
-    fun isCurrentlyListening(): Boolean = isListening || (!userStopped && !finalized && accumulatedText.isNotEmpty())
+    fun isCurrentlyListening(): Boolean = isListening || (!userStopped && accumulatedText.isNotEmpty())
 
     private fun destroyRecognizer() {
         isListening = false

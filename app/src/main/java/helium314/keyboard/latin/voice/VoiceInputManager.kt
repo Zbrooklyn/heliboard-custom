@@ -307,7 +307,8 @@ class VoiceInputManager(
         mainHandler.post {
             client.startListening(
                 onResult = { text ->
-                    // Called on user stop OR auto-finalize after silence
+                    // Called ONLY on user-initiated stop (mic tap / keyboard button)
+                    // This is the ONLY path that exits voice mode
                     mainHandler.removeCallbacks(googleSttTimeoutRunnable)
                     mainHandler.removeCallbacks(maxRecordingRunnable)
                     releaseWakeLock()
@@ -318,6 +319,13 @@ class VoiceInputManager(
                         onResult.onResult(text.trim())
                     }
                     onStateChange.onStateChange(state)
+                },
+                onChunk = GoogleSttClient.ChunkCallback { chunk ->
+                    // Auto-submitted text after silence — commit it but stay in voice mode
+                    Log.d(TAG, "Google STT chunk (${chunk.length} chars), staying in voice mode")
+                    onResult.onResult(chunk)
+                    // Do NOT change state — remain LISTENING
+                    // Do NOT release wake lock or cancel max recording timer
                 },
                 onError = { errorMessage ->
                     Log.e(TAG, "Google STT error: $errorMessage")
