@@ -269,9 +269,19 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         startIndexOfMoreSuggestions = layoutHelper.layoutAndReturnStartIndexOfMoreSuggestions(
             context, suggestedWords, suggestionsStrip, this
         )
+
+        // Reset dismiss flag when user starts typing a new word
+        val isComposing = suggestions.mInputStyle != SuggestedWords.INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION
+                && !suggestions.isEmpty && !suggestions.isPunctuationSuggestions
+                && suggestions.mTypedWordValid
+        if (isComposing) {
+            suggestionsDismissedByUser = false
+        }
+
         // Samsung-style swap: suggestions replace toolbar in the same row
         val hasSuggestions = !suggestedWords.isEmpty
                 && !suggestedWords.isPunctuationSuggestions
+                && !suggestionsDismissedByUser
         bottomStripRow.isVisible = hasSuggestions
         toolbarContainer.isVisible = !hasSuggestions
         isExternalSuggestionVisible = false
@@ -287,10 +297,14 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         updateKeys()
     }
 
+    /** User dismissed suggestions — suppressed until next composing word starts. */
+    private var suggestionsDismissedByUser = false
+
     /** Dismiss dictionary suggestions and return to toolbar (Samsung-style back arrow). */
     private fun dismissSuggestions() {
-        clear()
-        listener.removeExternalSuggestions()
+        suggestionsDismissedByUser = true
+        // Just swap visibility — don't call listener which re-triggers suggestions
+        setToolbarVisibility(true)
     }
 
     fun setExternalSuggestionView(view: View?, addCloseButton: Boolean) {
