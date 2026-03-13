@@ -166,8 +166,8 @@ class GoogleSttClient(private val context: Context) {
         try {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create SpeechRecognizer", e)
-            currentOnError?.onError("Speech recognition not available")
+            Log.e(TAG, "Failed to create SpeechRecognizer, will retry", e)
+            scheduleRestart()
             return
         }
 
@@ -303,9 +303,9 @@ class GoogleSttClient(private val context: Context) {
         try {
             speechRecognizer?.startListening(intent)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start listening", e)
-            currentOnError?.onError("Failed to start speech recognition")
+            Log.e(TAG, "Failed to start listening, will retry", e)
             destroyRecognizer()
+            scheduleRestart()
         }
     }
 
