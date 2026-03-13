@@ -74,6 +74,10 @@ android {
             isShrinkResources = false
             isDebuggable = false
             isJniDebuggable = false
+            val ksFile = file("${rootDir}/keystore.jks")
+            if (ksFile.exists()) {
+                signingConfig = signingConfigs.getByName("custom")
+            }
         }
         create("nouserlib") { // same as release, but does not allow the user to provide a library
             isMinifyEnabled = true
