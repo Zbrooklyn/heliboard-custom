@@ -874,6 +874,13 @@ New dictionary:
     <string name="about_wiki_link_description">The Wiki can be improved by any GitHub user!</string>
     <!-- preference title for saving the log to a file -->
     <string name="save_log">Save log</string>
+    <!-- update checker -->
+    <string name="check_update">Check for updates</string>
+    <string name="check_update_checking">Checking…</string>
+    <string name="check_update_available">Update available: v%s</string>
+    <string name="check_update_none">You\'re up to date (v%s)</string>
+    <string name="check_update_failed">Could not check for updates</string>
+    <string name="check_update_download">Download</string>
     <!-- license for about screen-->
     <string name="license">Open-source license</string>
     <!-- license link for about screen-->

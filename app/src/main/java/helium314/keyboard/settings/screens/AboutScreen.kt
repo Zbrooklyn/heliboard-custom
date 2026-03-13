@@ -29,6 +29,7 @@ import helium314.keyboard.latin.settings.DebugSettings
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.SpannableStringUtils
+import helium314.keyboard.latin.utils.UpdateChecker
 import helium314.keyboard.latin.utils.getActivity
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.SettingsContainer
@@ -43,6 +44,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.core.content.edit
 import java.util.Locale
 
@@ -53,6 +56,7 @@ fun AboutScreen(
     val items = listOf(
         SettingsWithoutKey.APP,
         SettingsWithoutKey.VERSION,
+        SettingsWithoutKey.CHECK_UPDATE,
         SettingsWithoutKey.LICENSE,
         SettingsWithoutKey.HIDDEN_FEATURES,
         SettingsWithoutKey.GITHUB_WIKI,
@@ -89,6 +93,35 @@ fun createAboutSettings(context: Context) = listOf(
                 if (count < 5) return@Preference
                 prefs.edit { putBoolean(DebugSettings.PREF_SHOW_DEBUG_SETTINGS, true) }
                 Toast.makeText(ctx, R.string.prefs_debug_settings_enabled, Toast.LENGTH_LONG).show()
+            },
+            icon = R.drawable.ic_settings_about
+        )
+    },
+    Setting(context, SettingsWithoutKey.CHECK_UPDATE, R.string.check_update) {
+        val ctx = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val status = remember { mutableStateOf<String?>(null) }
+        val downloadUrl = remember { mutableStateOf<String?>(null) }
+        Preference(
+            name = it.title,
+            description = status.value ?: stringResource(R.string.check_update, BuildConfig.VERSION_NAME),
+            onClick = {
+                if (downloadUrl.value != null) {
+                    UpdateChecker.openDownload(ctx, downloadUrl.value!!)
+                    return@Preference
+                }
+                status.value = ctx.getString(R.string.check_update_checking)
+                scope.launch {
+                    val result = UpdateChecker.check()
+                    if (result.hasUpdate) {
+                        status.value = ctx.getString(R.string.check_update_available, result.latestVersion)
+                        downloadUrl.value = result.downloadUrl
+                    } else if (result.latestVersion.isNotEmpty()) {
+                        status.value = ctx.getString(R.string.check_update_none, result.latestVersion)
+                    } else {
+                        status.value = ctx.getString(R.string.check_update_failed)
+                    }
+                }
             },
             icon = R.drawable.ic_settings_about
         )

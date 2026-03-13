@@ -89,4 +89,5 @@ object SettingsWithoutKey {
     const val ACTIVITY_LOG = "activity_log"
     const val TEST_API_KEY = "test_api_key"
     const val RESET_LAYOUT = "reset_layout"
+    const val CHECK_UPDATE = "check_update"
 }

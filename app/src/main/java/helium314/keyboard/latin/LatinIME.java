@@ -1539,20 +1539,30 @@ public class LatinIME extends InputMethodService implements
 
                         final String committed = addTrailingSpace ? processed + " " : processed;
 
+                        String pkg = (ei != null) ? ei.packageName : "unknown";
+                        ActivityLog.INSTANCE.log("Voice",
+                            "Commit strategy: " + (isTypeNull ? "KEY_EVENTS (terminal)" : "COMMIT_TEXT")
+                            + " | app=" + pkg + " | inputType=0x" + Integer.toHexString(inputType));
+
                         if (isTypeNull) {
-                            // TYPE_NULL fields (terminals, games) — send key events
+                            // TYPE_NULL fields (terminals, games) — send per-character key events.
+                            // Single KEYCODE_UNKNOWN with full string doesn't work in most
+                            // terminal emulators (Termux, ConnectBot, etc.). Samsung keyboard
+                            // sends individual events, which is why it works everywhere.
                             android.view.inputmethod.InputConnection ic = getCurrentInputConnection();
                             if (ic != null) {
                                 ic.beginBatchEdit();
                                 ic.finishComposingText();
-                                // Send entire text as single KEYCODE_UNKNOWN event.
-                                // This preserves surrogate pairs (emoji, CJK supplementary),
-                                // RTL bidi context (Arabic, Hebrew), and character
-                                // shaping/joining (Arabic connected forms).
-                                long now = android.os.SystemClock.uptimeMillis();
-                                KeyEvent event = new KeyEvent(now, committed,
-                                    KeyCharacterMap.VIRTUAL_KEYBOARD, 0);
-                                ic.sendKeyEvent(event);
+                                for (int i = 0; i < committed.length(); i++) {
+                                    char c = committed.charAt(i);
+                                    long now = android.os.SystemClock.uptimeMillis();
+                                    // Send each character as a KEYCODE_UNKNOWN KeyEvent
+                                    // with the character in the text field — this is the
+                                    // standard way terminals receive Unicode input.
+                                    KeyEvent down = new KeyEvent(now, String.valueOf(c),
+                                        KeyCharacterMap.VIRTUAL_KEYBOARD, 0);
+                                    ic.sendKeyEvent(down);
+                                }
                                 ic.endBatchEdit();
                             }
                         } else {
