@@ -35,6 +35,45 @@ class GoogleSttClient(private val context: Context) {
     private var currentOnError: ErrorCallback? = null
     private var currentOnPartial: PartialCallback? = null
 
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    companion object {
+        private const val TAG = "GoogleSttClient"
+        private const val MAX_ACCUMULATED_CHARS = 10000 // ~2000 words
+
+        /** Delay before restarting recognizer to let it fully shut down. */
+        private const val RESTART_DELAY_MS = 200L
+
+        /** Silence before Google considers speech complete (default ~1.5s → 4s). */
+        private const val COMPLETE_SILENCE_MS = 4000L
+        /** Silence that might mean speech is complete (default ~1s → 3s). */
+        private const val POSSIBLY_COMPLETE_SILENCE_MS = 3000L
+        /** Minimum speech duration before silence detection kicks in. */
+        private const val MINIMUM_LENGTH_MS = 2000L
+
+        private fun errorCodeToString(error: Int): String = when (error) {
+            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+            SpeechRecognizer.ERROR_CLIENT -> "Client error"
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+            SpeechRecognizer.ERROR_NETWORK -> "Network error"
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+            SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognition service busy"
+            SpeechRecognizer.ERROR_SERVER -> "Server error"
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
+            else -> "Unknown error ($error)"
+        }
+
+        /** Errors that should trigger auto-restart instead of surfacing to the user. */
+        private fun isRecoverableError(error: Int): Boolean = when (error) {
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
+            SpeechRecognizer.ERROR_NO_MATCH,
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
+            SpeechRecognizer.ERROR_CLIENT -> true
+            else -> false
+        }
+    }
+
     fun interface ResultCallback {
         fun onResult(text: String?)
     }
@@ -103,6 +142,11 @@ class GoogleSttClient(private val context: Context) {
             if (requestedOffline) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
+            // Extend silence timeouts for dictation — Google's defaults (~1.5s) are too
+            // aggressive for natural speech with pauses. These give the user time to think.
+            putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", COMPLETE_SILENCE_MS)
+            putExtra("android.speech.extra.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", POSSIBLY_COMPLETE_SILENCE_MS)
+            putExtra("android.speech.extra.SPEECH_INPUT_MINIMUM_LENGTH_MILLIS", MINIMUM_LENGTH_MS)
         }
 
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -134,16 +178,17 @@ class GoogleSttClient(private val context: Context) {
                     return
                 }
 
-                // On silence timeout or no match, auto-restart
-                if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
-                    error == SpeechRecognizer.ERROR_NO_MATCH) {
-                    Log.d(TAG, "Auto-restarting after silence")
-                    startRecognizer()
+                // Recoverable errors — auto-restart with a short delay to let
+                // the recognizer fully shut down and avoid ERROR_RECOGNIZER_BUSY
+                if (isRecoverableError(error)) {
+                    Log.d(TAG, "Auto-restarting after recoverable error (code=$error)")
+                    mainHandler.postDelayed({ startRecognizer() }, RESTART_DELAY_MS)
                     return
                 }
 
-                // Real errors — report to caller
-                currentOnError?.onError(msg)
+                // Real errors — report to caller with error code for debugging
+                Log.w(TAG, "Non-recoverable error (code=$error): $msg")
+                currentOnError?.onError("$msg (code=$error)")
                 destroyRecognizer()
             }
 
@@ -163,9 +208,10 @@ class GoogleSttClient(private val context: Context) {
                     // User already stopped — deliver accumulated results
                     finalizeResults()
                 } else {
-                    // Auto-restart for continuous recording
+                    // Auto-restart for continuous recording — short delay to let
+                    // recognizer fully shut down and avoid audio gap issues
                     Log.d(TAG, "Auto-restarting for continuous recording")
-                    startRecognizer()
+                    mainHandler.postDelayed({ startRecognizer() }, RESTART_DELAY_MS)
                 }
             }
 
@@ -232,6 +278,7 @@ class GoogleSttClient(private val context: Context) {
     fun cancel() {
         userStopped = true
         isListening = false
+        cancelPendingRestart()
         accumulatedText.clear()
         currentOnResult = null
         currentOnError = null
@@ -252,21 +299,8 @@ class GoogleSttClient(private val context: Context) {
         speechRecognizer = null
     }
 
-    companion object {
-        private const val TAG = "GoogleSttClient"
-        private const val MAX_ACCUMULATED_CHARS = 10000 // ~2000 words
-
-        private fun errorCodeToString(error: Int): String = when (error) {
-            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-            SpeechRecognizer.ERROR_CLIENT -> "Client error"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
-            SpeechRecognizer.ERROR_NETWORK -> "Network error"
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-            SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognition service busy"
-            SpeechRecognizer.ERROR_SERVER -> "Server error"
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
-            else -> "Unknown error ($error)"
-        }
+    /** Cancel pending restart when cleaning up. */
+    private fun cancelPendingRestart() {
+        mainHandler.removeCallbacksAndMessages(null)
     }
 }
