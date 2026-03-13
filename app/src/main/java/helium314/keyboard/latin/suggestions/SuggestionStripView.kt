@@ -271,10 +271,26 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         )
         // Samsung-style swap: suggestions replace toolbar in the same row
         val hasSuggestions = !suggestedWords.isEmpty
+                && !suggestedWords.isPunctuationSuggestions
         bottomStripRow.isVisible = hasSuggestions
         toolbarContainer.isVisible = !hasSuggestions
         isExternalSuggestionVisible = false
+        // Show dismiss button (back arrow) when dictionary suggestions are visible
+        if (hasSuggestions) {
+            toolbarExpandKey.setImageDrawable(
+                KeyboardIconsSet.instance.getNewDrawable(KeyboardIconsSet.NAME_TOOLBAR_KEY, context)
+            )
+            toolbarExpandKey.scaleX = -direction.toFloat() // flip arrow to point left (back)
+            toolbarExpandKey.isVisible = true
+            toolbarExpandKey.setOnClickListener { dismissSuggestions() }
+        }
         updateKeys()
+    }
+
+    /** Dismiss dictionary suggestions and return to toolbar (Samsung-style back arrow). */
+    private fun dismissSuggestions() {
+        clear()
+        listener.removeExternalSuggestions()
     }
 
     fun setExternalSuggestionView(view: View?, addCloseButton: Boolean) {
@@ -594,7 +610,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (settingsValues.mIncognitoModeEnabled) {
             toolbarExpandKey.setImageDrawable(incognitoIcon)
             toolbarExpandKey.isVisible = true
-        } else {
+        } else if (!bottomStripRow.isVisible) {
+            // Only hide expand key when toolbar is showing (no suggestions).
+            // When suggestions are visible, setSuggestions() sets the dismiss button.
             toolbarExpandKey.isVisible = false
         }
 
