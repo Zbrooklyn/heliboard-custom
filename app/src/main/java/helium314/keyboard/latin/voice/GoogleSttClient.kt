@@ -93,12 +93,9 @@ class GoogleSttClient(private val context: Context) {
             else -> "Unknown error ($error)"
         }
 
-        /** Errors that should trigger auto-restart instead of surfacing to the user. */
-        private fun isRecoverableError(error: Int): Boolean = when (error) {
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
-            SpeechRecognizer.ERROR_NO_MATCH,
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
-            SpeechRecognizer.ERROR_CLIENT -> true
+        /** Only truly fatal errors should exit voice mode. Everything else auto-restarts. */
+        private fun isFatalError(error: Int): Boolean = when (error) {
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> true
             else -> false
         }
     }
@@ -216,28 +213,30 @@ class GoogleSttClient(private val context: Context) {
                 val msg = errorCodeToString(error)
                 Log.d(TAG, "Recognition cycle ended: $msg (code=$error)")
 
-                if (isRecoverableError(error)) {
-                    if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
-                        error == SpeechRecognizer.ERROR_NO_MATCH) {
-                        silenceRestartCount++
-                    }
-
-                    // Hit silence limit with accumulated text — auto-submit chunk, keep going
-                    if (silenceRestartCount >= MAX_SILENCE_RESTARTS && accumulatedText.isNotEmpty()) {
-                        Log.d(TAG, "Max silence restarts — auto-submitting chunk")
-                        submitChunkAndContinue()
-                        return
-                    }
-
-                    Log.d(TAG, "Auto-restarting (code=$error, silenceCount=$silenceRestartCount)")
-                    scheduleRestart()
+                if (isFatalError(error)) {
+                    // Truly fatal — report to caller and shut down
+                    Log.w(TAG, "Fatal error (code=$error): $msg")
+                    cancelAllPending()
+                    currentOnError?.onError("$msg (code=$error)")
+                    destroyRecognizer()
                     return
                 }
 
-                // Real errors — report to caller
-                Log.w(TAG, "Non-recoverable error (code=$error): $msg")
-                currentOnError?.onError("$msg (code=$error)")
-                destroyRecognizer()
+                // Everything else is recoverable — auto-restart silently
+                if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
+                    error == SpeechRecognizer.ERROR_NO_MATCH) {
+                    silenceRestartCount++
+                }
+
+                // Hit silence limit with accumulated text — auto-submit chunk, keep going
+                if (silenceRestartCount >= MAX_SILENCE_RESTARTS && accumulatedText.isNotEmpty()) {
+                    Log.d(TAG, "Max silence restarts — auto-submitting chunk")
+                    submitChunkAndContinue()
+                    return
+                }
+
+                Log.d(TAG, "Auto-restarting (code=$error, silenceCount=$silenceRestartCount)")
+                scheduleRestart()
             }
 
             override fun onResults(results: Bundle?) {
