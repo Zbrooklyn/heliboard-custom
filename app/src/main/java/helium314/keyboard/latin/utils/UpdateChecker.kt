@@ -37,14 +37,17 @@ object UpdateChecker {
             val tagName = json.optString("tag_name", "").removePrefix("v")
             val body = json.optString("body", null)
 
-            // Find APK asset download URL
+            // Find APK asset matching current build type (debug → debug, release → release)
             val assets = json.optJSONArray("assets")
             var apkUrl: String? = null
             if (assets != null) {
+                val isDebug = BuildConfig.DEBUG
                 for (i in 0 until assets.length()) {
                     val asset = assets.getJSONObject(i)
                     val name = asset.optString("name", "")
-                    if (name.endsWith(".apk")) {
+                    if (!name.endsWith(".apk")) continue
+                    val isDebugApk = name.contains("debug", ignoreCase = true)
+                    if (isDebug == isDebugApk) {
                         apkUrl = asset.optString("browser_download_url", null)
                         break
                     }
