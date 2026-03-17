@@ -66,17 +66,31 @@ object UpdateChecker {
         context.startActivity(intent)
     }
 
-    /** Compare version strings like "1.2.3" — returns true if remote is newer than local. */
+    /**
+     * Compare version strings like "3.7.1" or "3.7.0-beta".
+     * Format: MAJOR.MINOR.PATCH with optional "-beta" suffix.
+     * A beta is older than the same numeric version without it (3.7.0-beta < 3.7.0).
+     * Local version may have git-describe noise (e.g. "3.7.0-beta-5-g02f9a06") — stripped.
+     */
     private fun isNewer(remote: String, local: String): Boolean {
-        // Strip any suffix after hyphen for comparison (e.g. "1.0.0-beta" → "1.0.0")
-        val r = remote.split("-").first().split(".").map { it.toIntOrNull() ?: 0 }
-        val l = local.split("-").first().split(".").map { it.toIntOrNull() ?: 0 }
-        for (i in 0 until maxOf(r.size, l.size)) {
-            val rv = r.getOrElse(i) { 0 }
-            val lv = l.getOrElse(i) { 0 }
+        val (rNums, rBeta) = parseVersion(remote)
+        val (lNums, lBeta) = parseVersion(local)
+        for (i in 0 until maxOf(rNums.size, lNums.size)) {
+            val rv = rNums.getOrElse(i) { 0 }
+            val lv = lNums.getOrElse(i) { 0 }
             if (rv > lv) return true
             if (rv < lv) return false
         }
+        // Same numeric version: non-beta is newer than beta
+        if (lBeta && !rBeta) return true
         return false
+    }
+
+    /** Parse "3.7.1-beta" → Pair([3,7,1], true). Strips git-describe suffixes. */
+    private fun parseVersion(raw: String): Pair<List<Int>, Boolean> {
+        val parts = raw.split("-")
+        val nums = parts.first().split(".").map { it.toIntOrNull() ?: 0 }
+        val isBeta = parts.size >= 2 && parts[1].equals("beta", ignoreCase = true)
+        return Pair(nums, isBeta)
     }
 }
